@@ -128,7 +128,7 @@ function openPurchaseDoc(){
  '<div class="formgrid" style="margin-top:16px">'+field('invoice_discount','Diskon nota (Rp)',0,'number','min="0" step="0.01" required')+field('shipping','Ongkir (Rp)',0,'number','min="0" step="0.01" required')+field('tax','Pajak (Rp)',0,'number','min="0" step="0.01" required')+
  '<label class="field">Foto/PDF nota (maks. 10 MB)<input type="file" name="attachment" accept="image/jpeg,image/png,image/webp,application/pdf"></label></div>'+
  '<div id="purchase-totals" class="notice" aria-live="polite"></div><p class="small">Ongkir, diskon, dan pajak dialokasikan ke HPP persediaan. Nota disimpan atomik. Lampiran disimpan privat setelah transaksi berhasil.</p>';
- modal('Nota pembelian · banyak barang',body,async f=>{
+ $('#save').hidden=false;$('#cancel').textContent='Batal';modal('Nota pembelian · banyak barang',body,async f=>{
  const lines=[...document.querySelectorAll('#purchase-lines tr')].map(tr=>({product_id:tr.querySelector('.purchase-product').value,qty:Number(tr.querySelector('.purchase-qty').value),cost:Number(tr.querySelector('.purchase-cost').value),discount:Number(tr.querySelector('.purchase-discount').value)}));
  if(!lines.length||lines.some(l=>!l.product_id||!Number.isInteger(l.qty)||l.qty<1||l.qty>999999||!Number.isFinite(l.cost)||l.cost<0||!Number.isFinite(l.discount)||l.discount<0||l.discount>l.cost*l.qty)||new Set(lines.map(l=>l.product_id)).size!==lines.length)throw Error('Periksa barang, jumlah, harga, diskon, dan duplikasi produk');
  const file=document.querySelector('[name=attachment]').files[0];
