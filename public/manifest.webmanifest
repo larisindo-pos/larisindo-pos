@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "Larisindo POS",
+  "short_name": "Larisindo",
+  "description": "Aplikasi kasir, stok, dan laporan Larisindo Mart",
+  "lang": "id",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0bb3a5",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
