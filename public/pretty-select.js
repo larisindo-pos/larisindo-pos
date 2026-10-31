@@ -52,7 +52,7 @@
    popup.insertBefore(search,list);search.addEventListener('input',()=>render(search.value));
   }
   render();
-  document.body.append(popup);
+  const host=select.closest('dialog[open]')||document.body;host.append(popup);
   const rect=button.getBoundingClientRect(),width=Math.max(210,rect.width);
   const left=Math.max(10,Math.min(rect.left,innerWidth-width-10));
   const roomBelow=innerHeight-rect.bottom;
@@ -77,13 +77,14 @@
    button.append(label,arrow);shell.append(button);updateButton(select);
    button.addEventListener('click',()=>open(select,button));
    select.addEventListener('change',()=>updateButton(select));
+   select.addEventListener('input',()=>updateButton(select));
   });
   document.querySelectorAll('select[data-pretty-ready]').forEach(updateButton);
   if(active&&!active.button.isConnected)close();
  }
  function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;enhance()})}
  const observer=new MutationObserver(records=>{
-  if(records.some(r=>r.type==='childList'&&(r.target.matches?.('select')||[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('select,option,optgroup')||n.querySelector?.('select'))))))schedule();
+  if(records.some(r=>r.type==='childList'&&(r.target.matches?.('select')||[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('select:not([data-pretty-ready]),option,optgroup')||n.querySelector?.('select:not([data-pretty-ready])'))))))schedule();
   if(active&&!active.button.isConnected)close();
  });
  document.addEventListener('DOMContentLoaded',()=>{
