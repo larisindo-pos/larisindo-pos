@@ -34,3 +34,28 @@
 /* Ensure broken product images are truly hidden */
 .pos-modern .pos-product-art img[hidden],.pos-product-art [hidden]{display:none!important}
 .pos-modern .pos-product-art img{max-width:100%;max-height:100%;object-fit:contain}
+
+/* Dashboard Kasir: modern modest Gen-Z dropdown */
+.cashier-heading{margin-bottom:19px;position:relative;z-index:5}
+.cashier-heading-main{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.cashier-heading h1{font-size:clamp(22px,2.5vw,30px);margin:0;letter-spacing:-.035em;color:#143f35}
+.cashier-heading>p{font-size:13px;color:#72857e;margin:7px 0 0}
+.cashier-dropdown-wrap{position:relative}
+.cashier-dropdown-trigger{display:flex;align-items:center;gap:12px;justify-content:space-between;min-width:148px;padding:10px 13px 10px 16px;border-radius:14px;border:1px solid #bde6d8;background:linear-gradient(135deg,#e8faf3,#f7fffb);color:#12634c;font:inherit;font-weight:700;font-size:13px;box-shadow:0 3px 12px #0a715117;cursor:pointer;transition:background .2s,box-shadow .2s,transform .2s}
+.cashier-dropdown-trigger:hover,.cashier-dropdown-trigger[aria-expanded="true"]{background:#ddf7ec;box-shadow:0 5px 18px #0a715125}
+.cashier-dropdown-trigger:focus-visible{outline:3px solid #72d8bc;outline-offset:2px}
+.cashier-dropdown-chevron{font-size:20px;line-height:12px;transition:transform .2s}
+.cashier-dropdown-trigger[aria-expanded="true"] .cashier-dropdown-chevron{transform:rotate(180deg)}
+.cashier-dropdown-menu{position:absolute;z-index:70;top:calc(100% + 9px);left:0;width:min(290px,calc(100vw - 36px));padding:10px;border:1px solid #d7ece3;border-radius:19px;background:#fff;box-shadow:0 17px 45px #0a48302c;animation:cashierMenuIn .16s ease-out}
+.cashier-dropdown-menu[hidden]{display:none!important}
+.cashier-menu-eyebrow{padding:9px 11px 12px;font-size:10px;letter-spacing:.11em;font-weight:800;color:#77a593}
+.cashier-menu-item{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border:0;border-radius:12px;background:transparent;color:#284b3e;font:inherit;font-size:13px;font-weight:600;text-align:left;cursor:pointer}
+.cashier-menu-item:hover{background:#f0f9f4}
+.cashier-menu-item.selected{background:#e4f7ee;color:#087653}
+.cashier-menu-icon{display:grid;place-items:center;width:31px;height:31px;flex:none;border-radius:10px;background:#f0f7f2;color:#178c6a;font-size:18px}
+.cashier-menu-item.selected .cashier-menu-icon{background:#c7efdc}
+.cashier-menu-label{flex:1}
+.cashier-menu-check{font-weight:800;color:#0b9267}
+.cashier-menu-footer{margin-top:8px;padding:11px 9px 3px;border-top:1px solid #edf2ef;text-align:center;font-size:11px;color:#8b9f92;font-style:italic}
+@keyframes cashierMenuIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:480px){.cashier-heading-main{gap:9px}.cashier-heading h1{font-size:22px}.cashier-dropdown-trigger{min-width:130px;padding:9px 11px;font-size:12px}}
