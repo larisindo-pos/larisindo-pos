@@ -103,20 +103,17 @@ async function downloadOpnameTemplate(id,excel=false){
 }
 
 async function shareOpnameTemplate(id){
- const rows=opnameTemplateRows(id),csv='\ufeff'+rows.map(row=>row.map(csvQuote).join(';')).join('\r\n');
- const file=new File([csv],'Template-Stock-Opname-Larisindo.csv',{type:'text/csv;charset=utf-8'});
- const subject='Template Stock Opname Larisindo POS';
- if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-  try{await navigator.share({files:[file],title:subject,text:'Silakan isi kolom stok_fisik lalu impor kembali ke Larisindo POS.'});return}
-  catch(e){if(e.name==='AbortError')return}
- }
- downloadCSVRows(rows,file.name);
- const email=prompt('Email penerima (lampirkan CSV yang sudah diunduh):');
- if(email===null)return;
- if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim()))return notify('Alamat email tidak valid');
- const link='mailto:'+encodeURIComponent(email.trim())+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent('File Template-Stock-Opname-Larisindo.csv sudah diunduh. Silakan lampirkan file tersebut pada email ini.');
- const anchor=document.createElement('a');anchor.href=link;anchor.click();
- notify('Email dibuka. Lampirkan file CSV yang sudah diunduh sebelum mengirim.');
+ if(!session)return notify('Silakan login kembali');
+ editModal('Kirim Template Stock Opname via Email',
+ field('email','Email penerima','','email','required autocomplete="email"')+
+ '<p class="small">File CSV berisi barang, barcode, lokasi gudang/rak, stok sistem, dan kolom stok fisik akan dikirim langsung sebagai lampiran. Tidak perlu membuka Gmail.</p>',
+ async f=>{
+  const email=String(f.email||'').trim();
+  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))throw Error('Email tidak valid');
+  const result=await request('/functions/v1/send-opname-template',{email,order_id:id||null});
+  if(!result?.ok)throw Error(result?.error||'Email gagal dikirim');
+  notify('Template berhasil dikirim ke '+email);
+ });
 }
 function cancelOpnameOrder(id){
  const o=opnameOrders.find(x=>x.id===id);
@@ -282,7 +279,7 @@ if(page==='keuangan')html=renderFinancePage(s);
 if(page==='laporan'){let sales=data.sales.filter(t=>(!rangeFrom||day(t.created_at)>=rangeFrom)&&(!rangeTo||day(t.created_at)<=rangeTo)),omzet=sum(sales,t=>t.total),hpp=sum(sales,t=>sum(t.items,i=>i.cost*i.qty));html=head('Laporan','Laba kotor belum dikurangi biaya operasional. Filter tanggal berdasarkan WITA.',btn('csv','Unduh CSV')+btn('print','Cetak / PDF',true))+`<section class="panel noprint"><div class="row">${field('from','Dari tanggal',rangeFrom,'date')}${field('to','Sampai tanggal',rangeTo,'date')}${btn('filter','Terapkan')}</div></section>`+cards([['Omzet',money(omzet)],['HPP',money(hpp)],['Laba kotor',money(omzet-hpp)],['Nilai stok saat ini',money(sum(data.products,p=>p.stock*p.cost))]])+`<section class="panel">${saleTable(sales)}</section>`;}
 if(page==='akses')html=head('Pengguna & Hak Akses','Admin membuat akun melalui Supabase, lalu Super Admin mengaktifkan akun dan menetapkan role.')+`<section class="panel">${table(['Nama','Email','Role','Status','Aksi'],data.users.map(u=>[esc(u.name),esc(u.email),esc(u.role),u.active?'Aktif':'Menunggu / Nonaktif',btn('user','Atur akses',true,u.id)]))}</section>`;
 if(page==='panduan')html=head('Panduan Operasional','Panduan sesuai fungsi aplikasi versi 2.0')+`<section class="panel"><p>Mulai dari pengaturan akun, barang, stok awal, lalu buka shift.</p><a class="btn" href="/panduan.html" target="_blank" rel="noopener">Buka buku panduan</a></section>`;
-$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.25 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=productsUI;$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
+$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.26 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=productsUI;$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
 function productsUI(){const q=$('#search').value.toLowerCase();$('#productGrid').innerHTML=data.products.filter(p=>[p.name,p.sku,p.barcode].some(v=>String(v||'').toLowerCase().includes(q))).map(p=>`<button class="product" data-action="add" data-id="${p.id}" ${p.stock<1?'disabled':''}><strong>${esc(p.name)}</strong><span class="price">${money(p.price)}</span><div class="muted">${esc(p.sku)} · Stok ${p.stock}</div></button>`).join('')||'<p>Belum ada barang. Supervisor perlu menambahkan barang dan stok.</p>'}
 function add(id){if(!ownShift())return notify('Buka shift terlebih dahulu');if(localStorage.getItem('larisindo.pending.'+data.me.id))return notify('Selesaikan pembayaran tertunda dahulu');let p=data.products.find(p=>p.id===id),c=cart.find(c=>c.id===id);if((c?.qty||0)>=p.stock)return notify('Stok tidak cukup');if(c)c.qty++;else cart.push({id,qty:1});cartUI()}
 function cartUI(){let total=sum(cart,c=>data.products.find(p=>p.id===c.id)?.price*c.qty);$('#cartArea').innerHTML=cart.map(c=>{let p=data.products.find(p=>p.id===c.id);return `<div class="cartline"><div><strong>${esc(p.name)}</strong><div>${money(p.price)} × ${c.qty}</div></div><div>${btn('minus','−',true,c.id)} ${c.qty} ${btn('add','+',true,c.id)}</div></div>`}).join('')+`<div class="total"><span>Total</span><span>${money(total)}</span></div>${select('method','Metode pembayaran',[['Tunai','Tunai'],['Transfer','Transfer'],['QRIS','QRIS'],['Piutang','Piutang (kredit)']])}<div id="paymentFields"></div>${btn('pay','Bayar '+money(total))}`;$('#cartArea [name=method]').value=method;$('#cartArea [name=method]').onchange=e=>{method=e.target.value;paymentFields()};paymentFields();$('#cartArea [data-action=pay]').disabled=!cart.length||!ownShift()||busy;}
