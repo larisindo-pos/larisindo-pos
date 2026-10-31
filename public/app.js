@@ -326,13 +326,37 @@ if(page==='keuangan')html=renderFinancePage(s);
 if(page==='laporan'){let sales=data.sales.filter(t=>(!rangeFrom||day(t.created_at)>=rangeFrom)&&(!rangeTo||day(t.created_at)<=rangeTo)),omzet=sum(sales,t=>t.total),hpp=sum(sales,t=>sum(t.items,i=>i.cost*i.qty));html=head('Laporan','Laba kotor belum dikurangi biaya operasional. Filter tanggal berdasarkan WITA.',btn('csv','Unduh CSV')+btn('print','Cetak / PDF',true))+`<section class="panel noprint"><div class="row">${field('from','Dari tanggal',rangeFrom,'date')}${field('to','Sampai tanggal',rangeTo,'date')}${btn('filter','Terapkan')}</div></section>`+cards([['Omzet',money(omzet)],['HPP',money(hpp)],['Laba kotor',money(omzet-hpp)],['Nilai stok saat ini',money(sum(data.products,p=>p.stock*p.cost))]])+`<section class="panel">${saleTable(sales)}</section>`;}
 if(page==='akses')html=head('Pengguna & Hak Akses','Atur role, status, dan checklist akses per fitur untuk setiap akun.')+`<section class="panel">${table(['Nama','Email','Role','Status','Aksi'],data.users.map(u=>[esc(u.name),esc(u.email),esc(u.role),u.active?'Aktif':'Menunggu / Nonaktif',btn('user','Atur akses',true,u.id)]))}</section>`;
 if(page==='panduan')html=head('Panduan Operasional','Panduan sesuai fungsi aplikasi versi 2.0')+`<section class="panel"><p>Mulai dari pengaturan akun, barang, stok awal, lalu buka shift.</p><a class="btn" href="/panduan.html" target="_blank" rel="noopener">Buka buku panduan</a></section>`;
-$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.38 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=()=>{posPage=1;productsUI()};$('#posCartJump').onclick=()=>$('#posCartPanel').scrollIntoView({behavior:'smooth',block:'start'});$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
+$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.39 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=()=>{posPage=1;productsUI()};$('#posCartJump').onclick=()=>$('#posCartPanel').scrollIntoView({behavior:'smooth',block:'start'});$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
 
 let posCategory='Semua',posPage=1;
 const POS_PAGE_SIZE=24;
 const skuCategoryNames={MKN:'Makanan',MNM:'Minuman',SNK:'Snack',KMS:'Kemasan'};
 function skuCategory(p){const prefix=String(p.sku||'').trim().split('-')[0].toUpperCase();return prefix?(skuCategoryNames[prefix]||prefix):'Tanpa SKU'}
-function productPhoto(p){return p.image_path?URL+'/storage/v1/object/public/larisindo-product-images/'+encodeURI(p.image_path):''}
+const productImageUrls=new Map();
+function productPhoto(p){return p.image_path?URL+'/storage/v1/object/public/larisindo-product-images/'+p.image_path.split('/').map(encodeURIComponent).join('/'):''}
+async function loadProductImages(){
+ const imgs=[...document.querySelectorAll('img[data-product-photo]')];
+ await Promise.all(imgs.map(async img=>{
+  const path=img.dataset.productPhoto;if(!path)return;
+  const current=productImageUrls.get(path);
+  if(current){img.src=current;return}
+  const remote=URL+'/storage/v1/object/public/larisindo-product-images/'+path.split('/').map(encodeURIComponent).join('/');
+  try{
+   const res=await fetch(remote,{headers:{apikey:KEY}});
+   if(!res.ok)throw Error('HTTP '+res.status);
+   const blob=await res.blob();
+   if(!blob.type.startsWith('image/'))throw Error('Bukan file gambar');
+   const blobUrl=globalThis.URL.createObjectURL(blob);
+   productImageUrls.set(path,blobUrl);
+   img.src=blobUrl;
+  }catch(e){
+   img.hidden=true;
+   const fallback=img.nextElementSibling;
+   if(fallback)fallback.hidden=false;
+   img.title='Foto gagal dimuat: '+e.message;
+  }
+ }))
+}
 async function uploadProductPhoto(id,file){
  if(file.size>2097152)throw Error('Foto maksimal 2 MB');
  const types={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
@@ -362,9 +386,9 @@ function productsUI(){
  const totalItems=products.length+svcs.length,maxPage=Math.max(1,Math.ceil(totalItems/POS_PAGE_SIZE));posPage=Math.min(posPage,maxPage);const offset=(posPage-1)*POS_PAGE_SIZE;
  const visibleProducts=products.slice(offset,offset+POS_PAGE_SIZE),visibleServices=svcs.slice(Math.max(0,offset-products.length),Math.max(0,offset+POS_PAGE_SIZE-products.length));
  $('#catalogCount').textContent=totalItems+' item';
- const cards=visibleProducts.map(p=>'<button class="product pos-product" data-action="add" data-id="'+p.id+'" '+(p.stock<1?'disabled':'')+'><span class="pos-product-art">'+(p.image_path?'<img loading="lazy" alt="" src="'+esc(productPhoto(p))+'">':'<span class="pos-product-placeholder">▦</span>')+'</span><span class="pos-product-name">'+esc(p.name)+'</span><span class="pos-product-meta">'+esc(p.sku||'Produk')+' · Stok '+p.stock+'</span><span class="pos-product-bottom"><strong>'+money(p.price)+'</strong><span class="pos-add">+</span></span></button>').join('')+
+ const cards=visibleProducts.map(p=>'<button class="product pos-product" data-action="add" data-id="'+p.id+'" '+(p.stock<1?'disabled':'')+'><span class="pos-product-art">'+(p.image_path?'<img loading="lazy" alt="'+esc(p.name)+'" data-product-photo="'+esc(p.image_path)+'"><span class="pos-product-placeholder" hidden>▦</span>':'<span class="pos-product-placeholder">▦</span>')+'</span><span class="pos-product-name">'+esc(p.name)+'</span><span class="pos-product-meta">'+esc(p.sku||'Produk')+' · Stok '+p.stock+'</span><span class="pos-product-bottom"><strong>'+money(p.price)+'</strong><span class="pos-add">+</span></span></button>').join('')+
  visibleServices.map(s=>'<button class="product pos-product" data-action="add-service" data-id="'+s.id+'"><span class="pos-product-art"><span class="pos-product-placeholder">✦</span></span><span class="pos-product-name">'+esc(s.name)+'</span><span class="pos-product-meta">Jasa · Tanpa stok</span><span class="pos-product-bottom"><strong>'+money(s.price)+'</strong><span class="pos-add">+</span></span></button>').join('');
- $('#productGrid').innerHTML=cards||'<div class="pos-empty">Tidak ada produk yang cocok.</div>';
+ $('#productGrid').innerHTML=cards||'<div class="pos-empty">Tidak ada produk yang cocok.</div>';loadProductImages();
  $('#posPager').innerHTML=totalItems>POS_PAGE_SIZE?'<button type="button" data-action="pos-prev" '+(posPage===1?'disabled':'')+'>← Sebelumnya</button><span>Halaman '+posPage+' / '+maxPage+' · '+totalItems+' item</span><button type="button" data-action="pos-next" '+(posPage===maxPage?'disabled':'')+'>Berikutnya →</button>':'';
 }
 function addService(id){if(!ownShift())return notify('Buka shift terlebih dahulu');if(localStorage.getItem('larisindo.pending.'+data.me.id))return notify('Selesaikan pembayaran tertunda dahulu');const s=services.find(x=>x.id===id&&x.active);if(!s)return notify('Jasa tidak tersedia');const c=cart.find(x=>x.id===id&&x.type==='service');if(c)c.qty++;else cart.push({id,qty:1,type:'service'});cartUI()}
