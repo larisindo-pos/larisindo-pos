@@ -72,3 +72,29 @@ select:not([multiple]):disabled{opacity:.55;cursor:not-allowed;background-color:
 select:not([multiple]) option{background:#fff;color:#174b3c;padding:9px}
 .pos-filter-row #posCategories{padding-right:36px!important;background-position:right 9px center}
 @media(max-width:480px){select:not([multiple]){padding-right:34px!important;background-position:right 8px center;background-size:17px}}
+
+/* Fresh floating option menus for every standard select */
+.pretty-select-shell{position:relative;display:inline-block;width:100%;min-width:0;vertical-align:middle}
+.pretty-select-shell>select{position:absolute!important;left:0;top:0;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;overflow:hidden!important;padding:0!important;margin:0!important;border:0!important}
+.pretty-select-button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:43px;padding:10px 12px 10px 14px;border:1px solid #d4e9df;border-radius:14px;background:linear-gradient(145deg,#fff,#f8fdfa);box-shadow:0 3px 11px #0b705010;color:#174d3c;font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:border-color .18s,box-shadow .18s,background .18s}
+.pretty-select-button:hover{border-color:#9ad9c0;background:#f1fcf6;box-shadow:0 5px 16px #0b705018}
+.pretty-select-button:focus-visible,.pretty-select-button[aria-expanded=true]{outline:none;border-color:#0bb3a5;box-shadow:0 0 0 3px #0bb3a524}
+.pretty-select-button:disabled{opacity:.55;cursor:not-allowed}
+.pretty-select-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.pretty-select-arrow{flex:none;display:grid;place-items:center;width:27px;height:27px;border-radius:9px;background:#e4f7ed;color:#0b9979;transition:transform .2s,background .2s}
+.pretty-select-button[aria-expanded=true] .pretty-select-arrow{transform:rotate(180deg);background:#c7f0df}
+.pretty-select-popover{position:fixed;z-index:99999;display:flex;flex-direction:column;gap:5px;overflow:hidden;padding:10px;border:1px solid #dceee5;border-radius:20px;background:#fff;box-shadow:0 18px 48px #0b49302e,0 3px 10px #0b49300d;animation:cashierMenuIn .16s ease-out}
+.pretty-select-heading{padding:7px 10px 9px;font-size:10px;letter-spacing:.11em;font-weight:800;color:#88aa99;text-transform:uppercase}
+.pretty-select-search{width:100%;min-height:38px;padding:9px 11px;border:1px solid #d8eae1;border-radius:11px;background:#f6fcf8;font:inherit;font-size:13px;outline:none}
+.pretty-select-search:focus{border-color:#0bb3a5}
+.pretty-select-options{overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:4px;min-height:0;padding:2px;scrollbar-width:thin;scrollbar-color:#b6dccb transparent}
+.pretty-select-option{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:10px 12px;border:1px solid transparent;border-radius:12px;background:transparent;color:#31584a;font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:background .14s,transform .14s}
+.pretty-select-option:hover,.pretty-select-option:focus-visible{background:#effaf4;border-color:#e2f3e9;outline:none}
+.pretty-select-option.selected{background:linear-gradient(100deg,#e3f8ed,#f2fcf7);color:#087c59;font-weight:750}
+.pretty-select-option:disabled{opacity:.42;cursor:not-allowed}
+.pretty-option-text{flex:1;min-width:0;overflow-wrap:anywhere}
+.pretty-option-check{display:grid;place-items:center;width:23px;height:23px;border-radius:8px;color:#098b67;font-size:15px}
+.pretty-select-option.selected .pretty-option-check{background:#c9eedc}
+.pretty-select-empty{padding:16px;text-align:center;color:#829b8d;font-size:12px}
+.pos-filter-row .pretty-select-shell{width:100%}
+@media(max-width:480px){.pretty-select-button{font-size:12px;padding:9px 10px}.pretty-select-popover{border-radius:16px}}
