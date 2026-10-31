@@ -63,3 +63,12 @@
 /* Cat-paw dropdown indicator */
 .cashier-dropdown-chevron{display:inline-grid;place-items:center;font-size:17px;line-height:1;transform:none!important;transition:transform .18s ease}
 .cashier-dropdown-trigger[aria-expanded="true"] .cashier-dropdown-chevron{transform:rotate(-18deg) scale(1.08)!important}
+
+/* Unified cute, minimal dropdowns — native controls remain accessible */
+select:not([multiple]){appearance:none;-webkit-appearance:none;min-height:42px;padding:10px 40px 10px 14px!important;border:1px solid #d3e9e0;border-radius:13px;background-color:#fbfffd;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='m7 10 5 5 5-5' stroke='%230b947a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-position:right 12px center;background-repeat:no-repeat;background-size:19px;color:#194d3f;box-shadow:0 2px 8px #0b75500b;cursor:pointer;transition:border-color .18s,box-shadow .18s,background-color .18s}
+select:not([multiple]):hover{border-color:#8fd5bd;background-color:#f4fdf8}
+select:not([multiple]):focus-visible,select:not([multiple]):focus{outline:none;border-color:#0bb3a5;box-shadow:0 0 0 3px #0bb3a526,0 4px 14px #0b755012}
+select:not([multiple]):disabled{opacity:.55;cursor:not-allowed;background-color:#f1f5f3}
+select:not([multiple]) option{background:#fff;color:#174b3c;padding:9px}
+.pos-filter-row #posCategories{padding-right:36px!important;background-position:right 9px center}
+@media(max-width:480px){select:not([multiple]){padding-right:34px!important;background-position:right 8px center;background-size:17px}}
