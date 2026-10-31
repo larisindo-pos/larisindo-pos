@@ -76,11 +76,11 @@ function financeReport(){
 
 let stockTransfers=[];
 
-const opnameColumns=['product_id','sku','barcode','nama_barang','lokasi_barang','stok_sistem','stok_fisik'];
+const opnameColumns=['product_id','sku','barcode','nama_barang','lokasi_barang','stok_sistem','stok_fisik','barcode_verifikasi'];
 function opnameTemplateRows(id){
  const o=opnameOrders.find(x=>x.id===id);
  const lines=o?.lines||data.products.map(p=>({product_id:p.id,name_snapshot:p.name,expected:p.stock,counted:null}));
- return [opnameColumns,...lines.map(l=>{const p=data.products.find(x=>x.id===l.product_id)||{};return [l.product_id,p.sku||'',p.barcode||'',l.name_snapshot,p.storage_location||'Belum ditentukan',l.expected,l.counted??'']})];
+ return [opnameColumns,...lines.map(l=>{const p=data.products.find(x=>x.id===l.product_id)||{};return [l.product_id,p.sku||'',p.barcode||'',l.name_snapshot,l.counted_location||p.storage_location||'Belum ditentukan',l.expected,l.counted??'',l.counted_barcode||'']})];
 }
 function downloadCSVRows(rows,filename){
  const csv='\ufeff'+rows.map(row=>row.map(csvQuote).join(';')).join('\r\n');
@@ -94,12 +94,27 @@ function loadExcel(){
  excelLoader=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=()=>window.XLSX?resolve(window.XLSX):reject(Error('Excel tidak tersedia'));s.onerror=()=>reject(Error('Gagal memuat pembaca Excel. Gunakan CSV atau periksa internet.'));document.head.appendChild(s)}).catch(e=>{excelLoader=null;throw e});
  return excelLoader;
 }
+function buildExcelFile(rows){
+ const enc=new TextEncoder(),escapeXML=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+ const sheet='<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+rows.map((r,i)=>'<row r="'+(i+1)+'">'+r.map((v,j)=>{let n=j+1,col='';while(n){n--;col=String.fromCharCode(65+n%26)+col;n=Math.floor(n/26)}const ref=col+(i+1);return typeof v==='number'&&Number.isFinite(v)?'<c r="'+ref+'"><v>'+v+'</v></c>':'<c r="'+ref+'" t="inlineStr"><is><t>'+escapeXML(v)+'</t></is></c>'}).join('')+'</row>').join('')+'</sheetData></worksheet>';
+ const files={
+ '[Content_Types].xml':'<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+ '_rels/.rels':'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+ 'xl/workbook.xml':'<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Stock Opname" sheetId="1" r:id="rId1"/></sheets></workbook>',
+ 'xl/_rels/workbook.xml.rels':'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+ 'xl/worksheets/sheet1.xml':'<?xml version="1.0"?>'+sheet
+ };
+ const crc=bytes=>{let c=-1;for(const b of bytes){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0)}return(c^-1)>>>0};
+ const u16=(a,n)=>{a.push(n&255,(n>>>8)&255)},u32=(a,n)=>{u16(a,n);u16(a,n>>>16)};
+ let parts=[],directory=[],offset=0,count=0;
+ for(const [name,content] of Object.entries(files)){const filename=enc.encode(name),bytes=enc.encode(content),checksum=crc(bytes);let h=[];u32(h,0x04034b50);u16(h,20);u16(h,0x800);u16(h,0);u16(h,0);u16(h,0);u32(h,checksum);u32(h,bytes.length);u32(h,bytes.length);u16(h,filename.length);u16(h,0);parts.push(new Uint8Array(h),filename,bytes);let d=[];u32(d,0x02014b50);u16(d,20);u16(d,20);u16(d,0x800);u16(d,0);u16(d,0);u16(d,0);u32(d,checksum);u32(d,bytes.length);u32(d,bytes.length);u16(d,filename.length);u16(d,0);u16(d,0);u16(d,0);u16(d,0);u32(d,0);u32(d,offset);directory.push(new Uint8Array(d),filename);offset+=h.length+filename.length+bytes.length;count++}
+ const dirSize=directory.reduce((n,x)=>n+x.length,0),end=[];u32(end,0x06054b50);u16(end,0);u16(end,0);u16(end,count);u16(end,count);u32(end,dirSize);u32(end,offset);u16(end,0);
+ return new Blob([...parts,...directory,new Uint8Array(end)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
 async function downloadOpnameTemplate(id,excel=false){
  const rows=opnameTemplateRows(id),filename='Template-Stock-Opname-Larisindo';
  if(!excel)return downloadCSVRows(rows,filename+'.csv');
- const XLSX=await loadExcel(),wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
- ws['!cols']=[{wch:38},{wch:20},{wch:20},{wch:36},{wch:24},{wch:16},{wch:16}];
- XLSX.utils.book_append_sheet(wb,ws,'Stock Opname');XLSX.writeFile(wb,filename+'.xlsx');
+ const url=globalThis.URL.createObjectURL(buildExcelFile(rows)),link=document.createElement('a');link.href=url;link.download=filename+'.xlsx';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>globalThis.URL.revokeObjectURL(url),10000);
 }
 
 async function shareOpnameTemplate(id){
@@ -131,12 +146,12 @@ function openOpnameImport(id){
  if(f.size>5*1024*1024)throw Error('File maksimal 5 MB');
  let rows;if(/\.csv$/i.test(f.name))rows=parseCSV(await f.text());else{const XLSX=await loadExcel();const book=XLSX.read(await f.arrayBuffer(),{type:'array'});rows=XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:'',raw:false})}
  const headers=rows.shift()?.map(x=>String(x).trim().toLowerCase())||[];
- const ix=headers.indexOf('product_id'),qty=headers.indexOf('stok_fisik');
+ const ix=headers.indexOf('product_id'),qty=headers.indexOf('stok_fisik'),bi=headers.indexOf('barcode_verifikasi'),li=headers.indexOf('lokasi_barang');
  if(ix<0||qty<0)throw Error('Kolom product_id dan stok_fisik wajib tersedia');
- const allowed=new Set(o.lines.map(l=>l.product_id)),counts={};
- for(let n=0;n<rows.length;n++){const row=rows[n],pid=String(row[ix]||'').trim(),val=String(row[qty]??'').trim();if(!pid&&!val)continue;if(!allowed.has(pid))throw Error('Baris '+(n+2)+': ID barang tidak ada dalam opname');if(val==='')continue;if(!/^(0|[1-9][0-9]*)$/.test(val)||Number(val)>999999999)throw Error('Baris '+(n+2)+': stok fisik tidak valid');if(Object.hasOwn(counts,pid))throw Error('ID barang ganda di baris '+(n+2));counts[pid]=Number(val)}
+ const allowed=new Set(o.lines.map(l=>l.product_id)),counts={},barcodes={},locations={};
+ for(let n=0;n<rows.length;n++){const row=rows[n],pid=String(row[ix]||'').trim(),val=String(row[qty]??'').trim();if(!pid&&!val)continue;if(!allowed.has(pid))throw Error('Baris '+(n+2)+': ID barang tidak ada dalam opname');if(val==='')continue;if(!/^(0|[1-9][0-9]*)$/.test(val)||Number(val)>999999999)throw Error('Baris '+(n+2)+': stok fisik tidak valid');if(Object.hasOwn(counts,pid))throw Error('ID barang ganda di baris '+(n+2));counts[pid]=Number(val);const p=data.products.find(x=>x.id===pid)||{};const barcode=String(bi>=0?row[bi]||'':'').trim(),expected=String(p.barcode||'').trim();if(barcode&&barcode!==expected)throw Error('Baris '+(n+2)+': barcode verifikasi tidak cocok');if(expected&&!barcode)throw Error('Baris '+(n+2)+': barcode verifikasi wajib diisi');if(barcode)barcodes[pid]=barcode;if(li>=0&&String(row[li]||'').trim())locations[pid]=String(row[li]).trim()}
  if(!Object.keys(counts).length)throw Error('Tidak ada stok fisik yang diisi');
- await rpc('pos_opname_save',{p_id:o.id,p_counts:counts});notify(Object.keys(counts).length+' hasil opname tersimpan sebagai draft.');await sync();
+ await rpc('pos_opname_save_details',{p_id:o.id,p_counts:counts,p_barcodes:barcodes,p_locations:locations});notify(Object.keys(counts).length+' hasil opname tersimpan sebagai draft.');await sync();
  });
 }
 function openStockTransfer(){
@@ -158,7 +173,7 @@ function renderOpnamePage(){
  h+='<section class="panel"><h2>Riwayat Pergerakan Stok</h2>'+table(['Waktu','Barang','Jenis','Delta','Alasan'],data.stock_moves.slice(0,200).map(m=>[date(m.created_at),esc(data.products.find(p=>p.id===m.product_id)?.name||m.product_id),esc(m.kind),m.delta,esc(m.kind==='Pembelian'&&!String(m.reason).startsWith('Pembelian di ')?'Pembelian di '+m.reason.replace(' / ',' · Nota '):m.reason)]))+'</section>';return h;
 }
 function opnameReport(o){
- const rows=o.lines.map(l=>{let d=l.counted===null?null:l.counted-l.expected;return [esc(l.name_snapshot),esc(data.products.find(p=>p.id===l.product_id)?.storage_location||'Belum ditentukan'),l.expected,l.counted===null?'Belum dihitung':l.counted,d===null?'—':d,money(l.cost_snapshot),d===null?'—':money(d*l.cost_snapshot)]});
+ const rows=o.lines.map(l=>{let d=l.counted===null?null:l.counted-l.expected;return [esc(l.name_snapshot),esc(l.counted_location||data.products.find(p=>p.id===l.product_id)?.storage_location||'Belum ditentukan'),l.expected,l.counted===null?'Belum dihitung':l.counted,d===null?'—':d,money(l.cost_snapshot),d===null?'—':money(d*l.cost_snapshot)]});
  const known=o.lines.filter(l=>l.counted!==null);
  return '<p>Nomor '+esc(o.number)+' · '+esc(o.status)+'</p>'+table(['Barang','Lokasi barang','Sistem','Fisik','Selisih qty','HPP','Selisih nilai'],rows)+
  '<p><strong>Selisih nilai bersih: '+money(sum(known,l=>(l.counted-l.expected)*l.cost_snapshot))+'</strong></p><p>Kekurangan: '+money(sum(known.filter(l=>l.counted<l.expected),l=>(l.expected-l.counted)*l.cost_snapshot))+' · Kelebihan: '+money(sum(known.filter(l=>l.counted>l.expected),l=>(l.counted-l.expected)*l.cost_snapshot))+'</p><p class="small">HPP adalah nilai snapshot saat perintah opname dibuat.</p>';
@@ -166,16 +181,24 @@ function opnameReport(o){
 function showOpnameReport(id){const o=opnameOrders.find(x=>x.id===id);if(!o)return;$('#save').hidden=true;$('#cancel').textContent='Tutup';modal('Laporan Selisih Stock Opname',opnameReport(o),()=>{})}
 function openOpnameCount(id){
  const o=opnameOrders.find(x=>x.id===id);if(!o||o.status!=='ACTIVE')return;
- const body='<p><strong>'+esc(o.number)+'</strong> · Isi hasil fisik, simpan draft berkali-kali.</p>'+btn('opname-template','Unduh CSV',true,id)+btn('opname-template-xlsx','Unduh Excel',true,id)+btn('opname-email','Kirim via Email',true,id)+btn('opname-import','Impor Excel / CSV',true,id)+'<div style="max-height:55vh;overflow:auto">'+table(['Barang','Lokasi barang','Stok sistem','Stok fisik','HPP/unit'],o.lines.map(l=>[esc(l.name_snapshot),esc(data.products.find(p=>p.id===l.product_id)?.storage_location||'Belum ditentukan'),l.expected,'<input class="opname-count" data-id="'+esc(l.product_id)+'" type="number" min="0" step="1" placeholder="Belum" value="'+(l.counted===null?'':l.counted)+'" style="width:110px">',money(l.cost_snapshot)]))+'</div><p class="notice" id="opname-summary"></p>'+btn('opname-process','Proses Hasil (Final)',true,id);
- editModal('Hasil Stock Opname · Simpan Draft',body,()=>rpc('pos_opname_save',{p_id:id,p_counts:readOpnameCounts()}));
- const summary=()=>{let n=0,total=0;document.querySelectorAll('.opname-count').forEach(el=>{if(el.value==='')return;const l=o.lines.find(x=>x.product_id===el.dataset.id);n++;total+=(Number(el.value)-l.expected)*l.cost_snapshot});$('#opname-summary').textContent=n+'/'+o.lines.length+' barang · Selisih nilai sementara '+money(total)};
- document.querySelectorAll('.opname-count').forEach(el=>el.addEventListener('input',summary));summary();
+ const body='<p><strong>'+esc(o.number)+'</strong> · Cocokkan barcode, isi lokasi dan stok fisik, lalu simpan draft.</p>'+btn('opname-template','Unduh CSV',true,id)+btn('opname-template-xlsx','Unduh Excel',true,id)+btn('opname-email','Kirim via Email',true,id)+btn('opname-import','Impor Excel / CSV',true,id)+'<div style="max-height:55vh;overflow:auto">'+table(['Barang','Barcode sistem','Barcode verifikasi','Lokasi barang (isi)','Stok sistem','Stok fisik','HPP/unit'],o.lines.map(l=>{const p=data.products.find(x=>x.id===l.product_id)||{},code=String(p.barcode||'');return [esc(l.name_snapshot),esc(code||'—'),'<input class="opname-barcode" data-id="'+esc(l.product_id)+'" data-expected="'+esc(code)+'" type="text" inputmode="numeric" autocomplete="off" placeholder="'+(code?'Scan / ketik barcode':'Tanpa barcode')+'" value="'+esc(l.counted_barcode||'')+'" style="min-width:145px">','<input class="opname-location" data-id="'+esc(l.product_id)+'" type="text" maxlength="120" placeholder="Gudang / Rak" value="'+esc(l.counted_location||p.storage_location||'')+'" style="min-width:140px">',l.expected,'<input class="opname-count" data-id="'+esc(l.product_id)+'" type="number" min="0" step="1" placeholder="Belum" value="'+(l.counted===null?'':l.counted)+'" style="width:100px">',money(l.cost_snapshot)]}))+'</div><p class="notice" id="opname-summary"></p>'+btn('opname-process','Proses Hasil (Final)',true,id);
+ editModal('Hasil Stock Opname · Simpan Draft',body,()=>saveOpnameDetails(id));
+ const summary=()=>{let n=0,total=0,wrong=0;document.querySelectorAll('.opname-count').forEach(el=>{if(el.value==='')return;const l=o.lines.find(x=>x.product_id===el.dataset.id);n++;total+=(Number(el.value)-l.expected)*l.cost_snapshot});document.querySelectorAll('.opname-barcode').forEach(el=>{const matched=!el.value.trim()||el.value.trim()===el.dataset.expected;el.style.borderColor=matched?'':'#d33';if(!matched)wrong++});$('#opname-summary').textContent=n+'/'+o.lines.length+' barang · Barcode tidak cocok: '+wrong+' · Selisih nilai sementara '+money(total)};
+ document.querySelectorAll('.opname-count,.opname-barcode').forEach(el=>el.addEventListener('input',summary));summary();
 }
-function readOpnameCounts(){const counts={};document.querySelectorAll('.opname-count').forEach(el=>{if(el.value!=='')counts[el.dataset.id]=Number(el.value)});return counts}
+function readOpnameDetails(){
+ const counts={},barcodes={},locations={};
+ document.querySelectorAll('.opname-count').forEach(el=>{if(el.value!==''){if(!/^(0|[1-9][0-9]*)$/.test(el.value)||Number(el.value)>999999999)throw Error('Stok fisik tidak valid');counts[el.dataset.id]=Number(el.value)}});
+ document.querySelectorAll('.opname-barcode').forEach(el=>{const code=el.value.trim();if(code&&code!==el.dataset.expected)throw Error('Barcode tidak cocok dengan barang sistem. Periksa baris yang ditandai merah.');if(code)barcodes[el.dataset.id]=code;if(el.dataset.expected&&Object.hasOwn(counts,el.dataset.id)&&!code)throw Error('Barcode verifikasi wajib diisi untuk barang yang dihitung: '+el.dataset.expected)});
+ document.querySelectorAll('.opname-location').forEach(el=>{const location=el.value.trim();if(location)locations[el.dataset.id]=location});
+ return {p_counts:counts,p_barcodes:barcodes,p_locations:locations};
+}
+async function saveOpnameDetails(id){return rpc('pos_opname_save_details',{p_id:id,...readOpnameDetails()})}
+function readOpnameCounts(){return readOpnameDetails().p_counts}
 async function processOpname(id){
  const o=opnameOrders.find(x=>x.id===id);if(!o||o.status!=='ACTIVE')return;
  const fields=document.querySelectorAll('.opname-count');
- if(fields.length){if([...fields].some(el=>el.value===''))return notify('Semua barang wajib dihitung sebelum proses');await rpc('pos_opname_save',{p_id:id,p_counts:readOpnameCounts()})}
+ if(fields.length){if([...fields].some(el=>el.value===''))return notify('Semua barang wajib dihitung sebelum proses');await saveOpnameDetails(id)}
  else if(o.lines.some(l=>l.counted===null))return notify('Masih ada barang belum dihitung');
  if(!confirm('Proses final akan menyesuaikan stok dan membuka kembali transaksi. Lanjutkan?'))return;
  await rpc('pos_opname_process',{p_id:id});$('#dialog').close();await sync();notify('Stok berhasil disesuaikan, transaksi dibuka');
@@ -279,12 +302,12 @@ if(page==='keuangan')html=renderFinancePage(s);
 if(page==='laporan'){let sales=data.sales.filter(t=>(!rangeFrom||day(t.created_at)>=rangeFrom)&&(!rangeTo||day(t.created_at)<=rangeTo)),omzet=sum(sales,t=>t.total),hpp=sum(sales,t=>sum(t.items,i=>i.cost*i.qty));html=head('Laporan','Laba kotor belum dikurangi biaya operasional. Filter tanggal berdasarkan WITA.',btn('csv','Unduh CSV')+btn('print','Cetak / PDF',true))+`<section class="panel noprint"><div class="row">${field('from','Dari tanggal',rangeFrom,'date')}${field('to','Sampai tanggal',rangeTo,'date')}${btn('filter','Terapkan')}</div></section>`+cards([['Omzet',money(omzet)],['HPP',money(hpp)],['Laba kotor',money(omzet-hpp)],['Nilai stok saat ini',money(sum(data.products,p=>p.stock*p.cost))]])+`<section class="panel">${saleTable(sales)}</section>`;}
 if(page==='akses')html=head('Pengguna & Hak Akses','Admin membuat akun melalui Supabase, lalu Super Admin mengaktifkan akun dan menetapkan role.')+`<section class="panel">${table(['Nama','Email','Role','Status','Aksi'],data.users.map(u=>[esc(u.name),esc(u.email),esc(u.role),u.active?'Aktif':'Menunggu / Nonaktif',btn('user','Atur akses',true,u.id)]))}</section>`;
 if(page==='panduan')html=head('Panduan Operasional','Panduan sesuai fungsi aplikasi versi 2.0')+`<section class="panel"><p>Mulai dari pengaturan akun, barang, stok awal, lalu buka shift.</p><a class="btn" href="/panduan.html" target="_blank" rel="noopener">Buka buku panduan</a></section>`;
-$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.26 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=productsUI;$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
+$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.27 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=productsUI;$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
 function productsUI(){const q=$('#search').value.toLowerCase();$('#productGrid').innerHTML=data.products.filter(p=>[p.name,p.sku,p.barcode].some(v=>String(v||'').toLowerCase().includes(q))).map(p=>`<button class="product" data-action="add" data-id="${p.id}" ${p.stock<1?'disabled':''}><strong>${esc(p.name)}</strong><span class="price">${money(p.price)}</span><div class="muted">${esc(p.sku)} · Stok ${p.stock}</div></button>`).join('')||'<p>Belum ada barang. Supervisor perlu menambahkan barang dan stok.</p>'}
 function add(id){if(!ownShift())return notify('Buka shift terlebih dahulu');if(localStorage.getItem('larisindo.pending.'+data.me.id))return notify('Selesaikan pembayaran tertunda dahulu');let p=data.products.find(p=>p.id===id),c=cart.find(c=>c.id===id);if((c?.qty||0)>=p.stock)return notify('Stok tidak cukup');if(c)c.qty++;else cart.push({id,qty:1});cartUI()}
 function cartUI(){let total=sum(cart,c=>data.products.find(p=>p.id===c.id)?.price*c.qty);$('#cartArea').innerHTML=cart.map(c=>{let p=data.products.find(p=>p.id===c.id);return `<div class="cartline"><div><strong>${esc(p.name)}</strong><div>${money(p.price)} × ${c.qty}</div></div><div>${btn('minus','−',true,c.id)} ${c.qty} ${btn('add','+',true,c.id)}</div></div>`}).join('')+`<div class="total"><span>Total</span><span>${money(total)}</span></div>${select('method','Metode pembayaran',[['Tunai','Tunai'],['Transfer','Transfer'],['QRIS','QRIS'],['Piutang','Piutang (kredit)']])}<div id="paymentFields"></div>${btn('pay','Bayar '+money(total))}`;$('#cartArea [name=method]').value=method;$('#cartArea [name=method]').onchange=e=>{method=e.target.value;paymentFields()};paymentFields();$('#cartArea [data-action=pay]').disabled=!cart.length||!ownShift()||busy;}
 function paymentFields(){$('#paymentFields').innerHTML=method==='Tunai'?field('tendered','Uang diterima (Rp)','','number','min="0" step="1" required'):method==='Piutang'?field('customer','Nama pelanggan','','text','required minlength="2"')+field('due','Jatuh tempo','','date','required'):field('reference','Nomor referensi pembayaran','','text','minlength="3" required')+'<label class="field">Foto bukti pembayaran · Kamera<input type="file" id="paymentCamera" accept="image/*" capture="environment"></label><label class="field">Atau pilih file foto/PDF<input type="file" id="paymentFile" accept="image/jpeg,image/png,image/webp,application/pdf"></label><p class="small">Foto/PDF maksimal 10 MB. Bukti disimpan privat; Finance dapat memeriksanya.</p>'}
-function modal(title,body,fn){$('#dialogTitle').textContent=title;$('#dialogBody').innerHTML=body;$('#dialogError').hidden=true;saveHandler=fn;$('#dialog').showModal()}
+function modal(title,body,fn){if($('#dialog').open)$('#dialog').close();$('#dialogTitle').textContent=title;$('#dialogBody').innerHTML=body;$('#dialogError').hidden=true;saveHandler=fn;$('#dialog').showModal()}
 $('#dialogForm').onsubmit=async e=>{e.preventDefault();if(busy)return;busy=true;$('#save').disabled=true;$('#dialogError').hidden=true;try{await saveHandler(Object.fromEntries(new FormData(e.target)));$('#dialog').close();await sync();notify('Tersimpan')}catch(err){$('#dialogError').textContent=err.message;$('#dialogError').hidden=false}finally{busy=false;$('#save').disabled=false}};
 async function uploadPaymentEvidence(saleId,file){
  if(!file)return;
