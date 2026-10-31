@@ -76,11 +76,11 @@ function financeReport(){
 
 let stockTransfers=[];
 
-const opnameColumns=['product_id','sku','barcode','nama_barang','stok_sistem','stok_fisik'];
+const opnameColumns=['product_id','sku','barcode','nama_barang','lokasi_barang','stok_sistem','stok_fisik'];
 function opnameTemplateRows(id){
  const o=opnameOrders.find(x=>x.id===id);
  const lines=o?.lines||data.products.map(p=>({product_id:p.id,name_snapshot:p.name,expected:p.stock,counted:null}));
- return [opnameColumns,...lines.map(l=>{const p=data.products.find(x=>x.id===l.product_id)||{};return [l.product_id,p.sku||'',p.barcode||'',l.name_snapshot,l.expected,l.counted??'']})];
+ return [opnameColumns,...lines.map(l=>{const p=data.products.find(x=>x.id===l.product_id)||{};return [l.product_id,p.sku||'',p.barcode||'',l.name_snapshot,p.storage_location||'Belum ditentukan',l.expected,l.counted??'']})];
 }
 function downloadCSVRows(rows,filename){
  const csv='\ufeff'+rows.map(row=>row.map(csvQuote).join(';')).join('\r\n');
@@ -91,28 +91,32 @@ let excelLoader;
 function loadExcel(){
  if(window.XLSX)return Promise.resolve(window.XLSX);
  if(excelLoader)return excelLoader;
- excelLoader=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=()=>window.XLSX?resolve(window.XLSX):reject(Error('Excel tidak tersedia'));s.onerror=()=>reject(Error('Gagal memuat pembaca Excel. Gunakan CSV atau periksa internet.'));document.head.appendChild(s)}).catch(e=>{excelLoader=null;throw e});
+ excelLoader=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=()=>window.XLSX?resolve(window.XLSX):reject(Error('Excel tidak tersedia'));s.onerror=()=>reject(Error('Gagal memuat pembaca Excel. Gunakan CSV atau periksa internet.'));document.head.appendChild(s)}).catch(e=>{excelLoader=null;throw e});
  return excelLoader;
 }
 async function downloadOpnameTemplate(id,excel=false){
  const rows=opnameTemplateRows(id),filename='Template-Stock-Opname-Larisindo';
  if(!excel)return downloadCSVRows(rows,filename+'.csv');
  const XLSX=await loadExcel(),wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
- ws['!cols']=[{wch:38},{wch:20},{wch:20},{wch:36},{wch:16},{wch:16}];
+ ws['!cols']=[{wch:38},{wch:20},{wch:20},{wch:36},{wch:24},{wch:16},{wch:16}];
  XLSX.utils.book_append_sheet(wb,ws,'Stock Opname');XLSX.writeFile(wb,filename+'.xlsx');
 }
 
 async function shareOpnameTemplate(id){
- const rows=opnameTemplateRows(id),csv='\ufeff'+rows.map(row=>row.map(csvQuote).join(';')).join('\r\n');
+ const rows=opnameTemplateRows(id),csv='\\ufeff'+rows.map(row=>row.map(csvQuote).join(';')).join('\\r\\n');
  const file=new File([csv],'Template-Stock-Opname-Larisindo.csv',{type:'text/csv;charset=utf-8'});
+ const subject='Template Stock Opname Larisindo POS';
  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-  try{await navigator.share({files:[file],title:'Template Stock Opname Larisindo',text:'Isi stok_fisik kemudian impor kembali ke Larisindo POS.'});return}catch(e){if(e.name==='AbortError')return;throw e}
+  try{await navigator.share({files:[file],title:subject,text:'Silakan isi kolom stok_fisik lalu impor kembali ke Larisindo POS.'});return}
+  catch(e){if(e.name==='AbortError')return}
  }
  downloadCSVRows(rows,file.name);
- const email=prompt('Email tujuan (lampirkan CSV yang baru diunduh):');
+ const email=prompt('Email penerima (lampirkan CSV yang sudah diunduh):');
  if(email===null)return;
- if(!email.includes('@')||!email.includes('.'))return notify('Email tidak valid');
- location.href='mailto:'+encodeURIComponent(email.trim())+'?subject='+encodeURIComponent('Template Stock Opname Larisindo')+'&body='+encodeURIComponent('Mohon lampirkan file Template-Stock-Opname-Larisindo.csv yang telah diunduh.');
+ if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim()))return notify('Alamat email tidak valid');
+ const link='mailto:'+encodeURIComponent(email.trim())+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent('File Template-Stock-Opname-Larisindo.csv sudah diunduh. Silakan lampirkan file tersebut pada email ini.');
+ const anchor=document.createElement('a');anchor.href=link;anchor.click();
+ notify('Email dibuka. Lampirkan file CSV yang sudah diunduh sebelum mengirim.');
 }
 function cancelOpnameOrder(id){
  const o=opnameOrders.find(x=>x.id===id);
@@ -157,15 +161,15 @@ function renderOpnamePage(){
  h+='<section class="panel"><h2>Riwayat Pergerakan Stok</h2>'+table(['Waktu','Barang','Jenis','Delta','Alasan'],data.stock_moves.slice(0,200).map(m=>[date(m.created_at),esc(data.products.find(p=>p.id===m.product_id)?.name||m.product_id),esc(m.kind),m.delta,esc(m.kind==='Pembelian'&&!String(m.reason).startsWith('Pembelian di ')?'Pembelian di '+m.reason.replace(' / ',' · Nota '):m.reason)]))+'</section>';return h;
 }
 function opnameReport(o){
- const rows=o.lines.map(l=>{let d=l.counted===null?null:l.counted-l.expected;return [esc(l.name_snapshot),l.expected,l.counted===null?'Belum dihitung':l.counted,d===null?'—':d,money(l.cost_snapshot),d===null?'—':money(d*l.cost_snapshot)]});
+ const rows=o.lines.map(l=>{let d=l.counted===null?null:l.counted-l.expected;return [esc(l.name_snapshot),esc(data.products.find(p=>p.id===l.product_id)?.storage_location||'Belum ditentukan'),l.expected,l.counted===null?'Belum dihitung':l.counted,d===null?'—':d,money(l.cost_snapshot),d===null?'—':money(d*l.cost_snapshot)]});
  const known=o.lines.filter(l=>l.counted!==null);
- return '<p>Nomor '+esc(o.number)+' · '+esc(o.status)+'</p>'+table(['Barang','Sistem','Fisik','Selisih qty','HPP','Selisih nilai'],rows)+
+ return '<p>Nomor '+esc(o.number)+' · '+esc(o.status)+'</p>'+table(['Barang','Lokasi barang','Sistem','Fisik','Selisih qty','HPP','Selisih nilai'],rows)+
  '<p><strong>Selisih nilai bersih: '+money(sum(known,l=>(l.counted-l.expected)*l.cost_snapshot))+'</strong></p><p>Kekurangan: '+money(sum(known.filter(l=>l.counted<l.expected),l=>(l.expected-l.counted)*l.cost_snapshot))+' · Kelebihan: '+money(sum(known.filter(l=>l.counted>l.expected),l=>(l.counted-l.expected)*l.cost_snapshot))+'</p><p class="small">HPP adalah nilai snapshot saat perintah opname dibuat.</p>';
 }
 function showOpnameReport(id){const o=opnameOrders.find(x=>x.id===id);if(!o)return;$('#save').hidden=true;$('#cancel').textContent='Tutup';modal('Laporan Selisih Stock Opname',opnameReport(o),()=>{})}
 function openOpnameCount(id){
  const o=opnameOrders.find(x=>x.id===id);if(!o||o.status!=='ACTIVE')return;
- const body='<p><strong>'+esc(o.number)+'</strong> · Isi hasil fisik, simpan draft berkali-kali.</p>'+btn('opname-template','Unduh CSV',true,id)+btn('opname-template-xlsx','Unduh Excel',true,id)+btn('opname-email','Kirim via Email',true,id)+btn('opname-import','Impor Excel / CSV',true,id)+'<div style="max-height:55vh;overflow:auto">'+table(['Barang','Stok sistem','Stok fisik','HPP/unit'],o.lines.map(l=>[esc(l.name_snapshot),l.expected,'<input class="opname-count" data-id="'+esc(l.product_id)+'" type="number" min="0" step="1" placeholder="Belum" value="'+(l.counted===null?'':l.counted)+'" style="width:110px">',money(l.cost_snapshot)]))+'</div><p class="notice" id="opname-summary"></p>'+btn('opname-process','Proses Hasil (Final)',true,id);
+ const body='<p><strong>'+esc(o.number)+'</strong> · Isi hasil fisik, simpan draft berkali-kali.</p>'+btn('opname-template','Unduh CSV',true,id)+btn('opname-template-xlsx','Unduh Excel',true,id)+btn('opname-email','Kirim via Email',true,id)+btn('opname-import','Impor Excel / CSV',true,id)+'<div style="max-height:55vh;overflow:auto">'+table(['Barang','Lokasi barang','Stok sistem','Stok fisik','HPP/unit'],o.lines.map(l=>[esc(l.name_snapshot),esc(data.products.find(p=>p.id===l.product_id)?.storage_location||'Belum ditentukan'),l.expected,'<input class="opname-count" data-id="'+esc(l.product_id)+'" type="number" min="0" step="1" placeholder="Belum" value="'+(l.counted===null?'':l.counted)+'" style="width:110px">',money(l.cost_snapshot)]))+'</div><p class="notice" id="opname-summary"></p>'+btn('opname-process','Proses Hasil (Final)',true,id);
  editModal('Hasil Stock Opname · Simpan Draft',body,()=>rpc('pos_opname_save',{p_id:id,p_counts:readOpnameCounts()}));
  const summary=()=>{let n=0,total=0;document.querySelectorAll('.opname-count').forEach(el=>{if(el.value==='')return;const l=o.lines.find(x=>x.product_id===el.dataset.id);n++;total+=(Number(el.value)-l.expected)*l.cost_snapshot});$('#opname-summary').textContent=n+'/'+o.lines.length+' barang · Selisih nilai sementara '+money(total)};
  document.querySelectorAll('.opname-count').forEach(el=>el.addEventListener('input',summary));summary();
@@ -278,7 +282,7 @@ if(page==='keuangan')html=renderFinancePage(s);
 if(page==='laporan'){let sales=data.sales.filter(t=>(!rangeFrom||day(t.created_at)>=rangeFrom)&&(!rangeTo||day(t.created_at)<=rangeTo)),omzet=sum(sales,t=>t.total),hpp=sum(sales,t=>sum(t.items,i=>i.cost*i.qty));html=head('Laporan','Laba kotor belum dikurangi biaya operasional. Filter tanggal berdasarkan WITA.',btn('csv','Unduh CSV')+btn('print','Cetak / PDF',true))+`<section class="panel noprint"><div class="row">${field('from','Dari tanggal',rangeFrom,'date')}${field('to','Sampai tanggal',rangeTo,'date')}${btn('filter','Terapkan')}</div></section>`+cards([['Omzet',money(omzet)],['HPP',money(hpp)],['Laba kotor',money(omzet-hpp)],['Nilai stok saat ini',money(sum(data.products,p=>p.stock*p.cost))]])+`<section class="panel">${saleTable(sales)}</section>`;}
 if(page==='akses')html=head('Pengguna & Hak Akses','Admin membuat akun melalui Supabase, lalu Super Admin mengaktifkan akun dan menetapkan role.')+`<section class="panel">${table(['Nama','Email','Role','Status','Aksi'],data.users.map(u=>[esc(u.name),esc(u.email),esc(u.role),u.active?'Aktif':'Menunggu / Nonaktif',btn('user','Atur akses',true,u.id)]))}</section>`;
 if(page==='panduan')html=head('Panduan Operasional','Panduan sesuai fungsi aplikasi versi 2.0')+`<section class="panel"><p>Mulai dari pengaturan akun, barang, stok awal, lalu buka shift.</p><a class="btn" href="/panduan.html" target="_blank" rel="noopener">Buka buku panduan</a></section>`;
-$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.24 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=productsUI;$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
+$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.25 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=productsUI;$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
 function productsUI(){const q=$('#search').value.toLowerCase();$('#productGrid').innerHTML=data.products.filter(p=>[p.name,p.sku,p.barcode].some(v=>String(v||'').toLowerCase().includes(q))).map(p=>`<button class="product" data-action="add" data-id="${p.id}" ${p.stock<1?'disabled':''}><strong>${esc(p.name)}</strong><span class="price">${money(p.price)}</span><div class="muted">${esc(p.sku)} · Stok ${p.stock}</div></button>`).join('')||'<p>Belum ada barang. Supervisor perlu menambahkan barang dan stok.</p>'}
 function add(id){if(!ownShift())return notify('Buka shift terlebih dahulu');if(localStorage.getItem('larisindo.pending.'+data.me.id))return notify('Selesaikan pembayaran tertunda dahulu');let p=data.products.find(p=>p.id===id),c=cart.find(c=>c.id===id);if((c?.qty||0)>=p.stock)return notify('Stok tidak cukup');if(c)c.qty++;else cart.push({id,qty:1});cartUI()}
 function cartUI(){let total=sum(cart,c=>data.products.find(p=>p.id===c.id)?.price*c.qty);$('#cartArea').innerHTML=cart.map(c=>{let p=data.products.find(p=>p.id===c.id);return `<div class="cartline"><div><strong>${esc(p.name)}</strong><div>${money(p.price)} × ${c.qty}</div></div><div>${btn('minus','−',true,c.id)} ${c.qty} ${btn('add','+',true,c.id)}</div></div>`}).join('')+`<div class="total"><span>Total</span><span>${money(total)}</span></div>${select('method','Metode pembayaran',[['Tunai','Tunai'],['Transfer','Transfer'],['QRIS','QRIS'],['Piutang','Piutang (kredit)']])}<div id="paymentFields"></div>${btn('pay','Bayar '+money(total))}`;$('#cartArea [name=method]').value=method;$('#cartArea [name=method]').onchange=e=>{method=e.target.value;paymentFields()};paymentFields();$('#cartArea [data-action=pay]').disabled=!cart.length||!ownShift()||busy;}
