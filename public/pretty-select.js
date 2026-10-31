@@ -83,7 +83,7 @@
  }
  function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;enhance()})}
  const observer=new MutationObserver(records=>{
-  if(records.some(r=>r.type==='childList'&&[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('select')||n.querySelector?.('select')))))schedule();
+  if(records.some(r=>r.type==='childList'&&(r.target.matches?.('select')||[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('select,option,optgroup')||n.querySelector?.('select'))))))schedule();
   if(active&&!active.button.isConnected)close();
  });
  document.addEventListener('DOMContentLoaded',()=>{
