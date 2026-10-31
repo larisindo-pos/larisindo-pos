@@ -326,14 +326,30 @@ if(page==='keuangan')html=renderFinancePage(s);
 if(page==='laporan'){let sales=data.sales.filter(t=>(!rangeFrom||day(t.created_at)>=rangeFrom)&&(!rangeTo||day(t.created_at)<=rangeTo)),omzet=sum(sales,t=>t.total),hpp=sum(sales,t=>sum(t.items,i=>i.cost*i.qty));html=head('Laporan','Laba kotor belum dikurangi biaya operasional. Filter tanggal berdasarkan WITA.',btn('csv','Unduh CSV')+btn('print','Cetak / PDF',true))+`<section class="panel noprint"><div class="row">${field('from','Dari tanggal',rangeFrom,'date')}${field('to','Sampai tanggal',rangeTo,'date')}${btn('filter','Terapkan')}</div></section>`+cards([['Omzet',money(omzet)],['HPP',money(hpp)],['Laba kotor',money(omzet-hpp)],['Nilai stok saat ini',money(sum(data.products,p=>p.stock*p.cost))]])+`<section class="panel">${saleTable(sales)}</section>`;}
 if(page==='akses')html=head('Pengguna & Hak Akses','Atur role, status, dan checklist akses per fitur untuk setiap akun.')+`<section class="panel">${table(['Nama','Email','Role','Status','Aksi'],data.users.map(u=>[esc(u.name),esc(u.email),esc(u.role),u.active?'Aktif':'Menunggu / Nonaktif',btn('user','Atur akses',true,u.id)]))}</section>`;
 if(page==='panduan')html=head('Panduan Operasional','Panduan sesuai fungsi aplikasi versi 2.0')+`<section class="panel"><p>Mulai dari pengaturan akun, barang, stok awal, lalu buka shift.</p><a class="btn" href="/panduan.html" target="_blank" rel="noopener">Buka buku panduan</a></section>`;
-$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.37 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=()=>{posPage=1;productsUI()};$('#posCartJump').onclick=()=>$('#posCartPanel').scrollIntoView({behavior:'smooth',block:'start'});$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
+$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.38 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=()=>{posPage=1;productsUI()};$('#posCartJump').onclick=()=>$('#posCartPanel').scrollIntoView({behavior:'smooth',block:'start'});$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
 
 let posCategory='Semua',posPage=1;
 const POS_PAGE_SIZE=24;
 const skuCategoryNames={MKN:'Makanan',MNM:'Minuman',SNK:'Snack',KMS:'Kemasan'};
 function skuCategory(p){const prefix=String(p.sku||'').trim().split('-')[0].toUpperCase();return prefix?(skuCategoryNames[prefix]||prefix):'Tanpa SKU'}
 function productPhoto(p){return p.image_path?URL+'/storage/v1/object/public/larisindo-product-images/'+encodeURI(p.image_path):''}
-async function uploadProductPhoto(id,file){if(file.size>2097152)throw Error('Foto maksimal 2 MB');const types={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};if(!types[file.type])throw Error('Gunakan JPG, PNG, atau WebP');const path=id+'/'+crypto.randomUUID()+'.'+types[file.type];const res=await fetch(URL+'/storage/v1/object/larisindo-product-images/'+path,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':file.type,'x-upsert':'false'},body:file});if(!res.ok)throw Error('Upload foto gagal: '+(await res.text()).slice(0,180));await rpc('pos_product_image',{p_product:id,p_path:path})}
+async function uploadProductPhoto(id,file){
+ if(file.size>2097152)throw Error('Foto maksimal 2 MB');
+ const types={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+ if(!types[file.type])throw Error('Gunakan JPG, PNG, atau WebP');
+ const path=id+'/'+crypto.randomUUID()+'.'+types[file.type];
+ const endpoint=URL+'/storage/v1/object/larisindo-product-images/'+path;
+ let res;
+ for(let attempt=0;attempt<2;attempt++){
+  try{res=await fetch(endpoint,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':file.type,'x-upsert':'false'},body:file});}
+  catch(err){if(attempt===0){await new Promise(resolve=>setTimeout(resolve,500));continue}throw Error('Koneksi ke penyimpanan foto Supabase gagal. Coba periksa jaringan atau pemblokiran browser lalu ulangi. Detail: '+err.message)}
+  if(res.status===401&&attempt===0&&session?.refresh_token){await refresh();continue}
+  break;
+ }
+ if(!res?.ok){const details=await res.text().catch(()=>res.statusText);throw Error('Foto gagal diunggah (HTTP '+res.status+'): '+details.slice(0,220))}
+ try{await rpc('pos_product_image',{p_product:id,p_path:path})}
+ catch(e){throw Error('Foto sudah diunggah, tetapi gagal ditautkan ke produk: '+e.message)}
+}
 function cartSummary(){const n=cart.reduce((t,c)=>t+c.qty,0),total=sum(cart,c=>((c.type==='service'?services.find(s=>s.id===c.id):data.products.find(p=>p.id===c.id))?.price||0)*c.qty);const b=$('#posCartJump');if(b){b.hidden=!n;b.textContent='🛒 '+n+' item · '+money(total)+' · Bayar ↗'}}
 function productsUI(){
  const search=$('#search');if(!search)return;const q=search.value.toLowerCase().trim();
@@ -541,8 +557,8 @@ if(a==='product'){
  if(!p)return notify('Barang baru harus dimasukkan melalui menu Pembelian → Nota Pembelian.');
  return editModal('Edit harga & lokasi · '+p.name,`<p><strong>${esc(p.name)}</strong> · ${esc(p.sku)} · ${esc(p.barcode||'Tanpa barcode')}</p><div class="formgrid">${field('price','Harga jual (minimal HPP)',p.price,'number','min="1" required')}${field('storage_location','Gudang / Rak',p.storage_location||'','text','maxlength="100" placeholder="Contoh: Gudang 1 / Rak A1"')}</div><label class="field">Foto produk (JPG/PNG/WebP, maks. 2 MB)<input id="productPhotoInput" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="small">Kosongkan jika foto tidak berubah.</p><p class="small">HPP menggunakan Moving Weighted Average saat pembelian. Nama, SKU dan barcode barang baru hanya diinput lewat Nota Pembelian.</p>`,async f=>{
  if(Number(f.price)<Number(p.cost))throw Error('Harga jual tidak boleh di bawah HPP '+money(p.cost));
- await rpc('pos_product',{p_id:p.id,p_sku:p.sku,p_barcode:p.barcode||'',p_name:p.name,p_category:p.category,p_unit:p.unit,p_price:Number(f.price),p_cost:Number(p.cost),p_minimum:Number(p.minimum)});
- await rpc('pos_set_product_location',{p_product:p.id,p_location:f.storage_location||''});const file=$('#productPhotoInput')?.files?.[0];if(file)await uploadProductPhoto(p.id,file);
+ const file=$('#productPhotoInput')?.files?.[0];if(file)await uploadProductPhoto(p.id,file);
+ try{await rpc('pos_product',{p_id:p.id,p_sku:p.sku,p_barcode:p.barcode||'',p_name:p.name,p_category:p.category,p_unit:p.unit,p_price:Number(f.price),p_cost:Number(p.cost),p_minimum:Number(p.minimum)});await rpc('pos_set_product_location',{p_product:p.id,p_location:f.storage_location||''})}catch(e){throw Error('Foto tersimpan, tetapi pembaruan harga/lokasi gagal: '+e.message)}
  });
 }
 if(a==='adjust'){let p=data.products.find(p=>p.id===id);return editModal('Opname: '+p.name,field('stock','Stok fisik',p.stock,'number','min="0" required')+field('reason','Alasan / berita acara','','text','minlength="5" required')+'<p>Koreksi ini memengaruhi nilai persediaan dan meninggalkan jejak permanen.</p>',f=>rpc('pos_adjust',{p_id:id,p_stock:Number(f.stock),p_reason:f.reason}))}
