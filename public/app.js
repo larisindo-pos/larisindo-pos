@@ -334,32 +334,14 @@ const skuCategoryNames={MKN:'Makanan',MNM:'Minuman',SNK:'Snack',KMS:'Kemasan'};
 function skuCategory(p){const prefix=String(p.sku||'').trim().split('-')[0].toUpperCase();return prefix?(skuCategoryNames[prefix]||prefix):'Tanpa SKU'}
 const productImageUrls=new Map();
 function productPhoto(p){return p.image_path?URL+'/storage/v1/object/public/larisindo-product-images/'+p.image_path.split('/').map(encodeURIComponent).join('/'):''}
-async function loadProductImages(){
- const imgs=[...document.querySelectorAll('img[data-product-photo]')];
- await Promise.all(imgs.map(async img=>{
+function loadProductImages(){
+ document.querySelectorAll('img[data-product-photo]').forEach(img=>{
   const path=img.dataset.productPhoto;if(!path)return;
   const fallback=img.nextElementSibling;
-  const fail=(reason)=>{img.removeAttribute('src');img.hidden=true;img.style.display='none';if(fallback){fallback.hidden=false;fallback.style.display='grid';fallback.title='Foto belum dapat ditampilkan: '+reason}img.closest('.pos-product-art')?.setAttribute('title','Foto belum dapat ditampilkan: '+reason)};
-  const show=(src)=>{img.onload=()=>{img.hidden=false;img.style.display='block';if(fallback){fallback.hidden=true;fallback.style.display='none'}};img.onerror=()=>fail('File gambar tidak dapat dibaca');img.src=src};
-  const cached=productImageUrls.get(path);if(cached){show(cached);return}
-  const encoded=path.split('/').map(encodeURIComponent).join('/');
-  const publicUrl=URL+'/storage/v1/object/public/larisindo-product-images/'+encoded;
-  const authenticatedUrl=URL+'/storage/v1/object/authenticated/larisindo-product-images/'+encoded;
-  let lastError='';
-  for(const endpoint of [publicUrl,authenticatedUrl]){
-   try{
-    const headers={apikey:KEY};if(endpoint===authenticatedUrl&&session?.access_token)headers.Authorization='Bearer '+session.access_token;
-    const res=await fetch(endpoint,{headers,cache:'no-store'});
-    if(!res.ok)throw Error('HTTP '+res.status);
-    const blob=await res.blob();if(!blob.type.startsWith('image/'))throw Error('Respons bukan gambar');
-    const objectUrl=globalThis.URL.createObjectURL(blob);
-    productImageUrls.set(path,objectUrl);
-    show(objectUrl);
-    return;
-   }catch(e){lastError=e.message}
-  }
-  fail(lastError||'Koneksi penyimpanan foto gagal');
- }))
+  img.onload=()=>{img.hidden=false;img.style.display='block';if(fallback){fallback.hidden=true;fallback.style.display='none'}};
+  img.onerror=()=>{img.hidden=true;img.style.display='none';if(fallback){fallback.hidden=false;fallback.style.display='grid';fallback.title='Foto tidak dapat dibaca'}};
+  img.src=URL+'/storage/v1/object/public/larisindo-product-images/'+path.split('/').map(encodeURIComponent).join('/');
+ });
 }
 async function uploadProductPhoto(id,file){
  if(file.size>2097152)throw Error('Foto maksimal 2 MB');
