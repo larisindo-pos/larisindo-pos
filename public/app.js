@@ -302,7 +302,7 @@ function openPurchaseDoc(){
   if(e.key!=='Enter'||!e.target.matches('.purchase-scan'))return;
   e.preventDefault();const scan=e.target.value.trim();
   const p=data.products.find(x=>x.barcode===scan||x.sku===scan);
-  if(!p){tr=e.target.closest('tr');tr.querySelector('.purchase-name').focus();notify('Barcode baru: ketik nama barang sekali, selanjutnya barcode akan dikenali.');return}
+  if(!p){const tr=e.target.closest('tr');tr.querySelector('.purchase-name').focus();notify('Barcode baru: ketik nama barang sekali, selanjutnya barcode akan dikenali.');return}
   const tr=e.target.closest('tr');tr.querySelector('.purchase-product').value=p.id;tr.querySelector('.purchase-name').value=p.name;tr.querySelector('.purchase-cost').value=(p.cost||0)*Number(tr.querySelector('.purchase-factor').value||1);e.target.value=p.barcode||p.sku;
   tr.querySelector('.purchase-qty').focus();tr.querySelector('.purchase-qty').select();recalc();
  });
