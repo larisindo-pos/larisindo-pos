@@ -322,7 +322,7 @@ function commercialUI(){
  if(commercialTab==='vouchers')html+='<section class="panel"><h2>Voucher Promosi</h2>'+btn('commercial-voucher-new','+ Buat Voucher')+table(['Kode','Nama','Potongan','Minimal Belanja','Terpakai','Aksi'],commercialData.vouchers.map(v=>[esc(v.code),esc(v.title),v.discount_type==='percent'?v.discount_value+'%':money(v.discount_value),money(v.minimum_spend),v.usage_count+(v.usage_limit?' / '+v.usage_limit:''),btn('commercial-voucher-edit','Edit',true,v.id)]))+'<p class="small">Voucher tercatat. Potongan checkout belum diaktifkan.</p></section>';
  if(commercialTab==='prices')html+='<section class="panel"><h2>Harga Bertingkat Grosir & Reseller</h2>'+table(['Produk','Jenis','Minimal Qty','Harga per Unit'],commercialData.prices.map(p=>[esc(data.products.find(x=>x.id===p.product_id)?.name||p.product_id),esc(p.tier),p.min_qty,money(p.unit_price)]))+'<p class="small">Harga bertingkat disiapkan; integrasi checkout belum diaktifkan.</p></section>';
  if(commercialTab==='settings'){const s=commercialData.settings||{};
- html+='<section class="panel"><div class="row" style="align-items:center;justify-content:space-between"><h2>Aturan Program Penjualan</h2>'+(data.me.role==='Super Admin'?btn('commercial-settings-edit','⚙ Atur Program'):'')+'</div><p class="small">Pengaturan tersimpan di database dan hanya dapat diubah Super Admin. Tidak langsung mengubah harga transaksi yang sudah terjadi.</p>'+
+ html+='<section class="panel"><h2>Ringkasan Aturan Program Penjualan</h2><p class="small">Pengaturan tersimpan di database dan hanya dapat diubah Super Admin. Tidak langsung mengubah harga transaksi yang sudah terjadi.</p>'+
  table(['Pengaturan','Nilai saat ini'],[
  ['Belanja untuk memperoleh poin',money(s.points_earning_step||10000)],
  ['Poin yang didapat per kelipatan belanja',s.points_per_step??0],
@@ -338,29 +338,6 @@ function commercialUI(){
  ])+'<p class="small">Catatan: aturan ini disimpan sebagai konfigurasi. Penerapan otomatis pada checkout, poin dan komisi membutuhkan integrasi transaksi terpisah.</p></section>';
  }
  return html;
-}
-function commercialSettingsForm(){
- if(data.me.role!=='Super Admin')return notify('Hanya Super Admin yang dapat mengubah aturan.');
- const s=commercialData.settings||{};
- const num=(name,label,value,min=0,max='')=>field(name,label,value,'number','min="'+min+'" '+(max!==''?'max="'+max+'" ':'')+'step="any" required');
- editModal('Pengaturan Poin, Grosir, Reseller & Affiliate',
- '<p class="small">Atur besaran program sesuai margin Larisindo. Nilai nol berarti tidak ada insentif.</p>'+
- '<h3>✦ Poin Member</h3>'+
- num('earning_step','Setiap belanja (Rp)',s.points_earning_step??10000,1)+
- num('points_step','Poin diperoleh',s.points_per_step??0)+
- num('point_value','Nilai tukar 1 poin (Rp)',s.point_value_rupiah??0)+
- num('redeem_limit','Batas penukaran poin (% dari total)',s.max_points_redeem_percent??0,0,100)+
- '<h3>▤ Harga Grosir</h3>'+
- num('wholesale_discount','Diskon grosir (%)',s.wholesale_discount_percent??0,0,100)+
- num('wholesale_qty','Minimal pembelian grosir (pcs)',s.wholesale_min_qty??1,1)+
- '<h3>◈ Reseller</h3>'+
- num('reseller_discount','Diskon reseller (%)',s.reseller_discount_percent??0,0,100)+
- num('reseller_qty','Minimal pembelian reseller (pcs)',s.reseller_min_qty??1,1)+
- '<h3>✧ Affiliate</h3>'+
- num('affiliate_commission','Komisi affiliate (%)',s.affiliate_commission_percent??0,0,100)+
- num('affiliate_minimum','Minimal transaksi yang mendapat komisi (Rp)',s.affiliate_minimum_order??0)+
- num('affiliate_hold','Tunda komisi selama (hari)',s.affiliate_hold_days??0),
- async f=>{const whole=['points_step','wholesale_qty','reseller_qty','affiliate_hold'];for(const k of whole){if(!Number.isInteger(Number(f[k])))throw Error('Kolom jumlah dan hari harus bilangan bulat')}await rpc('pos_commercial_settings_save',{p_earning_step:Number(f.earning_step),p_points_step:Number(f.points_step),p_point_value:Number(f.point_value),p_redeem_limit:Number(f.redeem_limit),p_wholesale_discount:Number(f.wholesale_discount),p_wholesale_qty:Number(f.wholesale_qty),p_reseller_discount:Number(f.reseller_discount),p_reseller_qty:Number(f.reseller_qty),p_affiliate_commission:Number(f.affiliate_commission),p_affiliate_minimum:Number(f.affiliate_minimum),p_affiliate_hold:Number(f.affiliate_hold)})});
 }
 function commercialMemberForm(id){
  const m=commercialData.members.find(x=>x.id===id)||{};
@@ -632,7 +609,7 @@ async function showPurchaseDoc(id){
 }
 
 function editModal(title,html,fn){$('#save').hidden=false;$('#cancel').textContent='Batal';modal(title,html,fn)}
-async function action(a,id){if(a==='commercial-settings-edit')return commercialSettingsForm();if(a==='commercial-tab'){commercialTab=id;return render()}if(a==='commercial-member-new')return commercialMemberForm(null);if(a==='commercial-member-edit')return commercialMemberForm(id);if(a==='commercial-voucher-new')return commercialVoucherForm(null);if(a==='commercial-voucher-edit')return commercialVoucherForm(id);if(a==='pos-prev'||a==='pos-next'){posPage=Math.max(1,posPage+(a==='pos-next'?1:-1));return productsUI()}if(a==='pos-category'){posCategory=id;return productsUI()}if(a==='add-service')return addService(id);if(a==='service-new')return openServiceForm(null);if(a==='service-edit')return openServiceForm(id);if(a==='opname-email')return shareOpnameTemplate(id);if(a==='opname-cancel')return cancelOpnameOrder(id);if(a==='opname-template')return downloadOpnameTemplate(id,false);if(a==='opname-template-xlsx')return downloadOpnameTemplate(id,true);if(a==='opname-import')return openOpnameImport(id);if(a==='opname-transfer')return openStockTransfer();if(a==='opname-adjust-reason')return openStockReason();if(a==='opname-start')return editModal('Perintah Stock Opname',field('number','Nomor perintah','SO-'+day(new Date()).replaceAll('-',''),'text','required minlength="3"')+field('location','Lokasi / Gudang','Gudang Utama','text','required')+field('notes','Keterangan')+'<div class="notice"><strong>Template Stock Opname</strong><p class="small">Unduh daftar barang dalam format Excel atau CSV, isi kolom stok fisik, lalu impor hasilnya setelah perintah dibuat.</p>'+btn('opname-template','Unduh Template CSV',true)+btn('opname-template-xlsx','Unduh Template Excel',true)+btn('opname-email','Kirim Template via Email',true)+'</div>',f=>rpc('pos_opname_start',{p_id:crypto.randomUUID(),p_number:f.number,p_location:f.location,p_notes:f.notes}));
+async function action(a,id){if(a==='commercial-tab'){commercialTab=id;return render()}if(a==='commercial-member-new')return commercialMemberForm(null);if(a==='commercial-member-edit')return commercialMemberForm(id);if(a==='commercial-voucher-new')return commercialVoucherForm(null);if(a==='commercial-voucher-edit')return commercialVoucherForm(id);if(a==='pos-prev'||a==='pos-next'){posPage=Math.max(1,posPage+(a==='pos-next'?1:-1));return productsUI()}if(a==='pos-category'){posCategory=id;return productsUI()}if(a==='add-service')return addService(id);if(a==='service-new')return openServiceForm(null);if(a==='service-edit')return openServiceForm(id);if(a==='opname-email')return shareOpnameTemplate(id);if(a==='opname-cancel')return cancelOpnameOrder(id);if(a==='opname-template')return downloadOpnameTemplate(id,false);if(a==='opname-template-xlsx')return downloadOpnameTemplate(id,true);if(a==='opname-import')return openOpnameImport(id);if(a==='opname-transfer')return openStockTransfer();if(a==='opname-adjust-reason')return openStockReason();if(a==='opname-start')return editModal('Perintah Stock Opname',field('number','Nomor perintah','SO-'+day(new Date()).replaceAll('-',''),'text','required minlength="3"')+field('location','Lokasi / Gudang','Gudang Utama','text','required')+field('notes','Keterangan')+'<div class="notice"><strong>Template Stock Opname</strong><p class="small">Unduh daftar barang dalam format Excel atau CSV, isi kolom stok fisik, lalu impor hasilnya setelah perintah dibuat.</p>'+btn('opname-template','Unduh Template CSV',true)+btn('opname-template-xlsx','Unduh Template Excel',true)+btn('opname-email','Kirim Template via Email',true)+'</div>',f=>rpc('pos_opname_start',{p_id:crypto.randomUUID(),p_number:f.number,p_location:f.location,p_notes:f.notes}));
 if(a==='opname-count')return openOpnameCount(id);
 if(a==='opname-report')return showOpnameReport(id);
 if(a==='opname-process')return processOpname(id);
