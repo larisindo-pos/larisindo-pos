@@ -103,7 +103,7 @@ async function downloadOpnameTemplate(id,excel=false){
 }
 
 async function shareOpnameTemplate(id){
- const rows=opnameTemplateRows(id),csv='\\ufeff'+rows.map(row=>row.map(csvQuote).join(';')).join('\\r\\n');
+ const rows=opnameTemplateRows(id),csv='\ufeff'+rows.map(row=>row.map(csvQuote).join(';')).join('\r\n');
  const file=new File([csv],'Template-Stock-Opname-Larisindo.csv',{type:'text/csv;charset=utf-8'});
  const subject='Template Stock Opname Larisindo POS';
  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
