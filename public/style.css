@@ -98,3 +98,19 @@ select:not([multiple]) option{background:#fff;color:#174b3c;padding:9px}
 .pretty-select-empty{padding:16px;text-align:center;color:#829b8d;font-size:12px}
 .pos-filter-row .pretty-select-shell{width:100%}
 @media(max-width:480px){.pretty-select-button{font-size:12px;padding:9px 10px}.pretty-select-popover{border-radius:16px}}
+
+/* Progressive-enhancement: styled native select popup in supporting browsers.
+   No DOM wrapping, no event interception, and no JS state. */
+@supports (appearance: base-select) {
+ select:not([multiple]),select:not([multiple])::picker(select){appearance:base-select}
+ select:not([multiple]){background-image:none!important;padding-right:38px!important;transition:border-color .2s,box-shadow .2s,background-color .2s}
+ select:not([multiple])::picker-icon{color:#0b9979;transition:transform .2s ease}
+ select:not([multiple]):open::picker-icon{transform:rotate(180deg)}
+ select:not([multiple])::picker(select){border:1px solid #d7ede2;border-radius:18px;padding:8px;margin-top:7px;background:#fff;box-shadow:0 16px 44px #0b49302b,0 3px 10px #0b49300b;max-height:min(360px,60vh);overflow-y:auto}
+ select:not([multiple]) option{display:flex;align-items:center;gap:10px;margin:3px 0;padding:12px 13px;border:1px solid transparent;border-radius:12px;background:#fff;color:#305848;font-size:13px;font-weight:550;min-height:42px;transition:background-color .15s}
+ select:not([multiple]) option:hover,select:not([multiple]) option:focus-visible{background:#f0faf5;border-color:#e0f1e8;outline:none}
+ select:not([multiple]) option:checked{background:linear-gradient(100deg,#e0f7ec,#f4fcf8);color:#087c59;font-weight:750}
+ select:not([multiple]) option::checkmark{color:#0b9571;font-weight:900;margin-left:auto}
+ select:not([multiple]) option:disabled{opacity:.45}
+ select:not([multiple])::picker(select):popover-open{animation:cashierMenuIn .16s ease-out}
+}
