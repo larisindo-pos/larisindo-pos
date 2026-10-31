@@ -9,7 +9,7 @@ function setSession(s){session=s;if(s)localStorage.setItem('larisindo.session',J
 async function request(path,body,auth=true,retry=true){let res=await fetch(URL+path,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',...(auth&&session?{Authorization:'Bearer '+session.access_token}:{})},body:JSON.stringify(body)});let result=await res.json().catch(()=>null);if(res.status===401&&auth&&retry&&session?.refresh_token){await refresh();return request(path,body,auth,false)}if(!res.ok){let e=Error(result?.msg||result?.message||result?.error_description||'Permintaan gagal ('+res.status+')');e.status=res.status;e.code=result?.code;throw e;}return result}
 async function refresh(){const s=await request('/auth/v1/token?grant_type=refresh_token',{refresh_token:session.refresh_token},false,false);setSession(s)}
 const rpc=(name,args={})=>request('/rest/v1/rpc/'+name,args);
-async function sync(){if(!session){$('#auth').hidden=false;$('#shell').hidden=true;return}try{data=await rpc('pos_snapshot');purchaseDocs=can('pembelian')||finance()?await rpc('pos_purchase_list'):[];financeEntries=finance()?await rpc('pos_finance_list'):[];opnameOrders=await rpc('pos_opname_list');paymentEvidence=await rpc('pos_payment_evidence_list');cashierCredits=can('kasir')?await rpc('pos_cashier_credit_list'):[];$('#auth').hidden=true;$('#shell').hidden=false;render()}catch(e){$('#auth').hidden=false;$('#shell').hidden=true;$('#authError').hidden=false;$('#authError').textContent=e.message+' — Jika baru mendaftar, minta Super Admin mengaktifkan akun.'}}
+async function sync(){if(!session){$('#auth').hidden=false;$('#shell').hidden=true;return}try{data=await rpc('pos_snapshot');purchaseDocs=can('pembelian')||finance()?await rpc('pos_purchase_list'):[];financeEntries=finance()?await rpc('pos_finance_list'):[];opnameOrders=await rpc('pos_opname_list');stockTransfers=can('produk')?await rpc('pos_stock_transfer_list'):[];paymentEvidence=await rpc('pos_payment_evidence_list');cashierCredits=can('kasir')?await rpc('pos_cashier_credit_list'):[];$('#auth').hidden=true;$('#shell').hidden=false;render()}catch(e){$('#auth').hidden=false;$('#shell').hidden=true;$('#authError').hidden=false;$('#authError').textContent=e.message+' — Jika baru mendaftar, minta Super Admin mengaktifkan akun.'}}
 async function auth(){const email=$('#email').value.trim(),password=$('#password').value;$('#authError').hidden=true;if(!$('#authForm').reportValidity())return;const buttons=[...$('#authForm').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);try{const s=await request('/auth/v1/token?grant_type=password',{email,password},false);setSession(s);await sync()}catch(e){$('#authError').textContent=e.message;$('#authError').hidden=false}finally{buttons.forEach(b=>b.disabled=false)}}
 $('#authForm').onsubmit=e=>{e.preventDefault();auth()};
 $('#logout').onclick=async()=>{try{await request('/auth/v1/logout',{})}catch{}setSession(null);data=null;cart=[];sync()};$('#refresh').onclick=()=>sync();$('#cancel').onclick=()=>$('#dialog').close();
@@ -74,12 +74,66 @@ function financeReport(){
  return html;
 }
 
+let stockTransfers=[];
+
+const opnameColumns=['product_id','sku','barcode','nama_barang','stok_sistem','stok_fisik'];
+function opnameTemplateRows(id){
+ const o=opnameOrders.find(x=>x.id===id);
+ const lines=o?.lines||data.products.map(p=>({product_id:p.id,name_snapshot:p.name,expected:p.stock,counted:null}));
+ return [opnameColumns,...lines.map(l=>{const p=data.products.find(x=>x.id===l.product_id)||{};return [l.product_id,p.sku||'',p.barcode||'',l.name_snapshot,l.expected,l.counted??'']})];
+}
+function downloadCSVRows(rows,filename){
+ const csv='\ufeff'+rows.map(row=>row.map(csvQuote).join(';')).join('\r\n');
+ const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+ const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+let excelLoader;
+function loadExcel(){
+ if(window.XLSX)return Promise.resolve(window.XLSX);
+ if(excelLoader)return excelLoader;
+ excelLoader=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=()=>window.XLSX?resolve(window.XLSX):reject(Error('Excel tidak tersedia'));s.onerror=()=>reject(Error('Gagal memuat pembaca Excel. Gunakan CSV atau periksa internet.'));document.head.appendChild(s)}).catch(e=>{excelLoader=null;throw e});
+ return excelLoader;
+}
+async function downloadOpnameTemplate(id,excel=false){
+ const rows=opnameTemplateRows(id),filename='Template-Stock-Opname-Larisindo';
+ if(!excel)return downloadCSVRows(rows,filename+'.csv');
+ const XLSX=await loadExcel(),wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
+ ws['!cols']=[{wch:38},{wch:20},{wch:20},{wch:36},{wch:16},{wch:16}];
+ XLSX.utils.book_append_sheet(wb,ws,'Stock Opname');XLSX.writeFile(wb,filename+'.xlsx');
+}
+function openOpnameImport(id){
+ const o=opnameOrders.find(x=>x.id===id)||activeOpname();
+ if(!o||o.status!=='ACTIVE')return notify('Buat Perintah Stock Opname dahulu sebelum mengimpor hasil.');
+ editModal('Impor Hasil Stock Opname', '<p>Unduh template, isi kolom <strong>stok_fisik</strong>, lalu unggah file .xlsx, .xls, atau .csv. Produk dicocokkan dengan ID, bukan hanya nama. File tidak otomatis memproses final.</p><label class="field">File Excel / CSV<input type="file" id="opname-file" accept=".xlsx,.xls,.csv,text/csv" required></label><p id="opname-import-status" class="notice">Belum ada file dipilih.</p>',async()=>{
+ const f=document.querySelector('#opname-file').files[0];if(!f)throw Error('Pilih file terlebih dahulu');
+ if(f.size>5*1024*1024)throw Error('File maksimal 5 MB');
+ let rows;if(/\.csv$/i.test(f.name))rows=parseCSV(await f.text());else{const XLSX=await loadExcel();const book=XLSX.read(await f.arrayBuffer(),{type:'array'});rows=XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:'',raw:false})}
+ const headers=rows.shift()?.map(x=>String(x).trim().toLowerCase())||[];
+ const ix=headers.indexOf('product_id'),qty=headers.indexOf('stok_fisik');
+ if(ix<0||qty<0)throw Error('Kolom product_id dan stok_fisik wajib tersedia');
+ const allowed=new Set(o.lines.map(l=>l.product_id)),counts={};
+ for(let n=0;n<rows.length;n++){const row=rows[n],pid=String(row[ix]||'').trim(),val=String(row[qty]??'').trim();if(!pid&&!val)continue;if(!allowed.has(pid))throw Error('Baris '+(n+2)+': ID barang tidak ada dalam opname');if(val==='')continue;if(!/^(0|[1-9][0-9]*)$/.test(val)||Number(val)>999999999)throw Error('Baris '+(n+2)+': stok fisik tidak valid');if(Object.hasOwn(counts,pid))throw Error('ID barang ganda di baris '+(n+2));counts[pid]=Number(val)}
+ if(!Object.keys(counts).length)throw Error('Tidak ada stok fisik yang diisi');
+ await rpc('pos_opname_save',{p_id:o.id,p_counts:counts});notify(Object.keys(counts).length+' hasil opname tersimpan sebagai draft.');await sync();
+ });
+}
+function openStockTransfer(){
+ if(activeOpname())return notify('Tidak bisa pindah lokasi saat opname aktif');
+ if(!data.products.length)return notify('Belum ada barang');
+ return editModal('Pindah Gudang / Rak',select('product','Barang',data.products.map(p=>[p.id,p.name+' · '+(p.storage_location||'Belum ditentukan')+' · stok '+p.stock]))+field('to','Lokasi tujuan','','text','required maxlength="100" placeholder="Gudang 2 / Rak B1"')+field('note','Alasan / berita acara','','text','required minlength="3"')+'<p class="small">Memindahkan <strong>seluruh stok barang</strong> ke lokasi tujuan. Total stok tidak berubah. Pemindahan sebagian stok belum didukung.</p>',f=>rpc('pos_stock_transfer',{p_product:f.product,p_to:f.to,p_note:f.note}));
+}
+function openStockReason(){
+ if(activeOpname())return notify('Penyesuaian stok terkunci saat opname');
+ if(!data.products.length)return notify('Belum ada barang');
+ return editModal('Penyesuaian Stok',select('product','Barang',data.products.map(p=>[p.id,p.name+' · stok '+p.stock]))+select('kind','Jenis',[['Rusak','Barang rusak'],['Kedaluwarsa','Barang kedaluwarsa'],['Selisih Penjualan','Salah hitung saat penjualan'],['Bonus','Bonus barang sejenis yang sudah terdaftar'],['Koreksi Lain','Koreksi lainnya']])+field('qty','Perubahan stok (+/- pcs)','','number','required step="1"')+field('note','Keterangan / berita acara','','text','required minlength="5"')+'<p class="small">Gunakan angka negatif untuk stok keluar (contoh -2). Bonus barang jenis baru dimasukkan melalui Nota Pembelian dengan harga Rp0 dan keterangan pemasok. Penyesuaian tidak mengubah HPP rata-rata.</p>',f=>rpc('pos_stock_adjust_reason',{p_product:f.product,p_quantity:Number(f.qty),p_kind:f.kind,p_note:f.note}));
+}
 function renderOpnamePage(){
  const active=activeOpname();
- let h=head('Stok & Opname','Perintah opname, simpan draft, proses hasil, dan laporan selisih.',active?'':btn('opname-start','+ Perintah Stock Opname'));
+ let h=head('Stok & Opname','Perintah opname, simpan draft, proses hasil, dan laporan selisih.',(active?'':btn('opname-start','+ Perintah Stock Opname'))+btn('opname-template','Unduh Template CSV',true,active?.id||'')+btn('opname-template-xlsx','Template Excel',true,active?.id||'')+btn('opname-import','Impor Excel / CSV',true,active?.id||'')+btn('opname-transfer','Pindah Gudang / Rak',true)+btn('opname-adjust-reason','Penyesuaian Stok',true));
  if(active)h+='<div class="notice"><strong>SEDANG STOCK OPNAME · '+esc(active.number)+'</strong><p>Penjualan, pembelian, dan perubahan barang terkunci pada database sampai hasil diproses.</p>'+btn('opname-count','Isi / Simpan Hasil',false,active.id)+'</div>';
  h+='<section class="panel"><h2>Perintah dan Hasil Opname</h2>'+table(['Nomor','Tanggal','Lokasi','Status','Hasil'],opnameOrders.map(o=>[esc(o.number),date(o.started_at),esc(o.location),o.status==='ACTIVE'?'Sedang dihitung':'Selesai',btn('opname-report','Lihat laporan',true,o.id)]))+'</section>';
- h+='<section class="panel"><h2>Riwayat Pergerakan Stok</h2>'+table(['Waktu','Barang','Delta','Alasan'],data.stock_moves.slice(0,200).map(m=>[date(m.created_at),esc(data.products.find(p=>p.id===m.product_id)?.name||m.product_id),m.delta,esc(m.reason)]))+'</section>';return h;
+ h+='<section class="panel"><h2>Riwayat Pindah Gudang / Rak</h2>'+table(['Waktu','Barang','Asal','Tujuan','Jumlah','Catatan'],stockTransfers.map(t=>[date(t.created_at),esc(t.product_name),esc(t.from_location),esc(t.to_location),t.qty,esc(t.note)]))+'</section>';
+ h+='<section class="panel"><h2>Riwayat Pergerakan Stok</h2>'+table(['Waktu','Barang','Jenis','Delta','Alasan'],data.stock_moves.slice(0,200).map(m=>[date(m.created_at),esc(data.products.find(p=>p.id===m.product_id)?.name||m.product_id),esc(m.kind),m.delta,esc(m.kind==='Pembelian'&&!String(m.reason).startsWith('Pembelian di ')?'Pembelian di '+m.reason.replace(' / ',' · Nota '):m.reason)]))+'</section>';return h;
 }
 function opnameReport(o){
  const rows=o.lines.map(l=>{let d=l.counted===null?null:l.counted-l.expected;return [esc(l.name_snapshot),l.expected,l.counted===null?'Belum dihitung':l.counted,d===null?'—':d,money(l.cost_snapshot),d===null?'—':money(d*l.cost_snapshot)]});
@@ -90,7 +144,7 @@ function opnameReport(o){
 function showOpnameReport(id){const o=opnameOrders.find(x=>x.id===id);if(!o)return;$('#save').hidden=true;$('#cancel').textContent='Tutup';modal('Laporan Selisih Stock Opname',opnameReport(o),()=>{})}
 function openOpnameCount(id){
  const o=opnameOrders.find(x=>x.id===id);if(!o||o.status!=='ACTIVE')return;
- const body='<p><strong>'+esc(o.number)+'</strong> · Isi hasil fisik, simpan draft berkali-kali.</p><div style="max-height:55vh;overflow:auto">'+table(['Barang','Stok sistem','Stok fisik','HPP/unit'],o.lines.map(l=>[esc(l.name_snapshot),l.expected,'<input class="opname-count" data-id="'+esc(l.product_id)+'" type="number" min="0" step="1" placeholder="Belum" value="'+(l.counted===null?'':l.counted)+'" style="width:110px">',money(l.cost_snapshot)]))+'</div><p class="notice" id="opname-summary"></p>'+btn('opname-process','Proses Hasil (Final)',true,id);
+ const body='<p><strong>'+esc(o.number)+'</strong> · Isi hasil fisik, simpan draft berkali-kali.</p>'+btn('opname-template','Unduh CSV',true,id)+btn('opname-template-xlsx','Unduh Excel',true,id)+btn('opname-import','Impor Excel / CSV',true,id)<div style="max-height:55vh;overflow:auto">'+table(['Barang','Stok sistem','Stok fisik','HPP/unit'],o.lines.map(l=>[esc(l.name_snapshot),l.expected,'<input class="opname-count" data-id="'+esc(l.product_id)+'" type="number" min="0" step="1" placeholder="Belum" value="'+(l.counted===null?'':l.counted)+'" style="width:110px">',money(l.cost_snapshot)]))+'</div><p class="notice" id="opname-summary"></p>'+btn('opname-process','Proses Hasil (Final)',true,id);
  editModal('Hasil Stock Opname · Simpan Draft',body,()=>rpc('pos_opname_save',{p_id:id,p_counts:readOpnameCounts()}));
  const summary=()=>{let n=0,total=0;document.querySelectorAll('.opname-count').forEach(el=>{if(el.value==='')return;const l=o.lines.find(x=>x.product_id===el.dataset.id);n++;total+=(Number(el.value)-l.expected)*l.cost_snapshot});$('#opname-summary').textContent=n+'/'+o.lines.length+' barang · Selisih nilai sementara '+money(total)};
  document.querySelectorAll('.opname-count').forEach(el=>el.addEventListener('input',summary));summary();
@@ -203,7 +257,7 @@ if(page==='keuangan')html=renderFinancePage(s);
 if(page==='laporan'){let sales=data.sales.filter(t=>(!rangeFrom||day(t.created_at)>=rangeFrom)&&(!rangeTo||day(t.created_at)<=rangeTo)),omzet=sum(sales,t=>t.total),hpp=sum(sales,t=>sum(t.items,i=>i.cost*i.qty));html=head('Laporan','Laba kotor belum dikurangi biaya operasional. Filter tanggal berdasarkan WITA.',btn('csv','Unduh CSV')+btn('print','Cetak / PDF',true))+`<section class="panel noprint"><div class="row">${field('from','Dari tanggal',rangeFrom,'date')}${field('to','Sampai tanggal',rangeTo,'date')}${btn('filter','Terapkan')}</div></section>`+cards([['Omzet',money(omzet)],['HPP',money(hpp)],['Laba kotor',money(omzet-hpp)],['Nilai stok saat ini',money(sum(data.products,p=>p.stock*p.cost))]])+`<section class="panel">${saleTable(sales)}</section>`;}
 if(page==='akses')html=head('Pengguna & Hak Akses','Admin membuat akun melalui Supabase, lalu Super Admin mengaktifkan akun dan menetapkan role.')+`<section class="panel">${table(['Nama','Email','Role','Status','Aksi'],data.users.map(u=>[esc(u.name),esc(u.email),esc(u.role),u.active?'Aktif':'Menunggu / Nonaktif',btn('user','Atur akses',true,u.id)]))}</section>`;
 if(page==='panduan')html=head('Panduan Operasional','Panduan sesuai fungsi aplikasi versi 2.0')+`<section class="panel"><p>Mulai dari pengaturan akun, barang, stok awal, lalu buka shift.</p><a class="btn" href="/panduan.html" target="_blank" rel="noopener">Buka buku panduan</a></section>`;
-$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.20 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=productsUI;$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
+$('#content').innerHTML=(activeOpname()?'<div class="notice"><strong>SEDANG PROSES STOCK OPNAME</strong> · Penjualan, pembelian, dan perubahan data barang dikunci sampai hasil diproses.</div>':'')+html+'<p class="small" style="margin-top:20px">Larisindo POS 2.21 · Data tersimpan di Supabase · Perlu koneksi internet</p>';if(page==='kasir'&&cashierTab==='transaksi'){productsUI();cartUI();$('#search').oninput=productsUI;$('#search').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();let p=data.products.find(p=>p.barcode===e.target.value||p.sku===e.target.value);if(p){add(p.id);e.target.value='';productsUI()}}};}}
 function productsUI(){const q=$('#search').value.toLowerCase();$('#productGrid').innerHTML=data.products.filter(p=>[p.name,p.sku,p.barcode].some(v=>String(v||'').toLowerCase().includes(q))).map(p=>`<button class="product" data-action="add" data-id="${p.id}" ${p.stock<1?'disabled':''}><strong>${esc(p.name)}</strong><span class="price">${money(p.price)}</span><div class="muted">${esc(p.sku)} · Stok ${p.stock}</div></button>`).join('')||'<p>Belum ada barang. Supervisor perlu menambahkan barang dan stok.</p>'}
 function add(id){if(!ownShift())return notify('Buka shift terlebih dahulu');if(localStorage.getItem('larisindo.pending.'+data.me.id))return notify('Selesaikan pembayaran tertunda dahulu');let p=data.products.find(p=>p.id===id),c=cart.find(c=>c.id===id);if((c?.qty||0)>=p.stock)return notify('Stok tidak cukup');if(c)c.qty++;else cart.push({id,qty:1});cartUI()}
 function cartUI(){let total=sum(cart,c=>data.products.find(p=>p.id===c.id)?.price*c.qty);$('#cartArea').innerHTML=cart.map(c=>{let p=data.products.find(p=>p.id===c.id);return `<div class="cartline"><div><strong>${esc(p.name)}</strong><div>${money(p.price)} × ${c.qty}</div></div><div>${btn('minus','−',true,c.id)} ${c.qty} ${btn('add','+',true,c.id)}</div></div>`}).join('')+`<div class="total"><span>Total</span><span>${money(total)}</span></div>${select('method','Metode pembayaran',[['Tunai','Tunai'],['Transfer','Transfer'],['QRIS','QRIS'],['Piutang','Piutang (kredit)']])}<div id="paymentFields"></div>${btn('pay','Bayar '+money(total))}`;$('#cartArea [name=method]').value=method;$('#cartArea [name=method]').onchange=e=>{method=e.target.value;paymentFields()};paymentFields();$('#cartArea [data-action=pay]').disabled=!cart.length||!ownShift()||busy;}
@@ -373,7 +427,7 @@ async function showPurchaseDoc(id){
 }
 
 function editModal(title,html,fn){$('#save').hidden=false;$('#cancel').textContent='Batal';modal(title,html,fn)}
-async function action(a,id){if(a==='opname-start')return editModal('Perintah Stock Opname',field('number','Nomor perintah','SO-'+day(new Date()).replaceAll('-',''),'text','required minlength="3"')+field('location','Lokasi / Gudang','Gudang Utama','text','required')+field('notes','Keterangan'),f=>rpc('pos_opname_start',{p_id:crypto.randomUUID(),p_number:f.number,p_location:f.location,p_notes:f.notes}));
+async function action(a,id){if(a==='opname-template')return downloadOpnameTemplate(id,false);if(a==='opname-template-xlsx')return downloadOpnameTemplate(id,true);if(a==='opname-import')return openOpnameImport(id);if(a==='opname-transfer')return openStockTransfer();if(a==='opname-adjust-reason')return openStockReason();if(a==='opname-start')return editModal('Perintah Stock Opname',field('number','Nomor perintah','SO-'+day(new Date()).replaceAll('-',''),'text','required minlength="3"')+field('location','Lokasi / Gudang','Gudang Utama','text','required')+field('notes','Keterangan'),f=>rpc('pos_opname_start',{p_id:crypto.randomUUID(),p_number:f.number,p_location:f.location,p_notes:f.notes}));
 if(a==='opname-count')return openOpnameCount(id);
 if(a==='opname-report')return showOpnameReport(id);
 if(a==='opname-process')return processOpname(id);
