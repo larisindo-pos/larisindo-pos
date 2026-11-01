@@ -251,3 +251,35 @@ dialog{background:#fcffff;border-color:#d9eef1}
 .mobile-nav{background:#ffffffed;border-top-color:#d6eef1}
 .mobile-nav button.active{color:#2b8994}
 @media(max-width:650px){main:before{opacity:.08}main:after{opacity:.06;width:100px}.commercial-showcase>.row.noprint{max-width:100%;overflow-x:auto}}
+
+/* Islamic watercolor / glassmorphism — global Larisindo POS visual layer */
+:root{--lc-teal:#00aeb2;--lc-deep:#086276;--lc-soft:#e4faff;--lc-border:#c8edf1;--lc-text:#075b70;--lc-muted:#42899b}
+html,body,body:has(.commercial-showcase){background:#f9feff!important;color:#075b70}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse 39% 26% at 17% 16%,#84dce56e,transparent 100%),radial-gradient(ellipse 36% 25% at 46% 12%,#c4effa91,transparent 100%),radial-gradient(ellipse 38% 27% at 91% 70%,#b2eff1a3,transparent 100%),radial-gradient(ellipse 58% 23% at 57% 105%,#69d6d9a6,transparent 100%),linear-gradient(160deg,#fff 15%,#f7fdff 60%,#e7f9fa);background-size:cover}
+body:after{content:"";position:fixed;top:0;right:0;width:min(290px,30vw);height:240px;z-index:-1;pointer-events:none;opacity:.25;background-image:repeating-conic-gradient(from 45deg at 50% 50%,#139aaa 0deg 4deg,transparent 4deg 45deg);background-size:50px 50px;mask-image:linear-gradient(to left,#000,transparent)}
+header,body:has(.commercial-showcase) header{background:#ffffffc9!important;backdrop-filter:blur(22px) saturate(135%);-webkit-backdrop-filter:blur(22px) saturate(135%);border:1px solid #ffffffde;box-shadow:0 6px 24px #148e9d16}
+aside,body:has(.commercial-showcase) aside{background:#f4fcffe0!important;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid #ffffffbd;box-shadow:0 8px 25px #167b8b14}
+aside .nav.active,body:has(.commercial-showcase) aside .nav.active{background:linear-gradient(115deg,#0bb6b7,#00a1ad)!important;color:#fff!important;box-shadow:0 5px 16px #009ba945}
+main:before{opacity:.12}
+main:after{opacity:.08}
+.panel,.card,.login,.commercial-showcase .panel,dialog{background:#ffffffba!important;border:1px solid #fffffff0!important;box-shadow:0 10px 28px #086a7c1a,0 2px 9px #086a7c0b!important;backdrop-filter:blur(19px) saturate(120%);-webkit-backdrop-filter:blur(19px) saturate(120%)}
+h1,h2,h3,.commercial-showcase h1,.commercial-showcase .panel h2{color:#07596b!important}
+p,.small,label,th,td,.commercial-showcase .panel td{color:#14667a}
+.btn,.commercial-showcase .commercial-member-actions .btn:not(.secondary){background:linear-gradient(110deg,#00b9b7,#009da9)!important;color:#fff!important;border-color:#70d5da!important}
+.btn.secondary,.commercial-showcase .commercial-member-actions .btn.secondary{background:#effbffdf!important;color:#086c80!important;border:1px solid #d1eef3!important}
+.btn.danger{background:#f0fcff!important;color:#08758b!important;border:1px solid #c6ebf1!important}
+table th{background:#e4f8fbbd!important;color:#07657b!important}
+table td{background:transparent!important;color:#0b5e73!important}
+table tbody tr:nth-child(even),.commercial-showcase .panel tbody tr:nth-child(even){background:#c9eef3a0!important}
+table tbody tr:nth-child(odd){background:#ffffff4f}
+table tbody tr:hover{background:#b5e9f0bd!important}
+input,textarea,select{background:#ffffffd9!important;color:#075d70!important;border-color:#c6eaf0!important}
+input:focus,textarea:focus,select:focus{border-color:#12a9b3!important}
+.chip,.status{background:#d5f6f7!important;color:#086b7d!important}
+.notice,.warning,.toast.warning{background:#fff4df!important;color:#a25c14!important;border-color:#f8dbab!important}
+.error{background:#fff4df!important;color:#a25c14!important}
+.commercial-showcase>.row.noprint{background:#d7f3f6c9!important}
+.commercial-showcase>.row.noprint .btn:not(.secondary){background:linear-gradient(110deg,#00b2b5,#009caa)!important;color:#fff!important}
+.mobile-nav{background:#ffffffd9!important;backdrop-filter:blur(16px);border-color:#c8e9ef!important}
+@media(max-width:700px){body:after{opacity:.1}.panel,.card,.commercial-showcase .panel{backdrop-filter:blur(12px)}}
+@media print{body:before,body:after,main:before,main:after{display:none!important}.panel,table td{background:white!important;box-shadow:none!important}}
