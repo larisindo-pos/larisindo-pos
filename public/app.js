@@ -384,7 +384,7 @@ function render(){if(data.me.role==='Kasir'||cashierInstallMode)page='kasir';els
 if(page==='komersial')html+=commercialUI();
 if(page==='dashboard'){let today=data.sales.filter(t=>day(t.created_at)===day(new Date()));html=head('Dashboard Larisindo','Ringkasan hari ini · waktu Mataram (WITA)')+cards([['Omzet hari ini',money(sum(today,t=>t.total))],['Transaksi hari ini',today.length],['Stok minimum',data.products.filter(p=>p.stock<=p.minimum).length],['Pembayaran belum diverifikasi',data.sales.filter(t=>t.method!=='Tunai'&&!t.verified_at).length]])+`<section class="panel"><h2>Transaksi terbaru</h2>${saleTable(data.sales.slice(0,8))}</section><div class="notice">${s?'Shift kamu aktif. Kas seharusnya '+money(expected(s))+'.':'Buka shift pada menu Kasir untuk mulai melayani.'} ${data.me.role==='Kasir'?'Ringkasan transaksi hanya milik akunmu.':''}</div>`;}
 if(page==='kasir')html=renderCashierWorkspace(s);
-if(page==='produk'){const tabs='<div class="row noprint" style="gap:8px;flex-wrap:wrap;margin-bottom:16px">'+btn('product-tab','Daftar Barang',productTab!=='barang','barang')+btn('product-tab','Daftar Jasa',productTab!=='jasa','jasa')+btn('product-tab','Stok & Opname',productTab!=='stok','stok')+'</div>';html=tabs+(productTab==='stok'?renderOpnamePage():productTab==='jasa'?renderServiceList():head('Barang & Jasa','Barang baru hanya dapat didaftarkan melalui Nota Pembelian. Harga jual dan lokasi gudang/rak dapat diedit di sini.','')+`<section class="panel">${table(['SKU / Barcode','Barang','Gudang / Rak','HPP','Harga jual','Stok','Aksi'],data.products.map(p=>[esc(p.sku)+'<div class="muted">'+esc(p.barcode)+'</div>',esc(p.name)+'<div class="muted">'+esc(p.category)+' · '+esc(p.unit)+'</div>',esc(p.storage_location||'Belum ditentukan'),money(p.cost),money(p.price),p.stock,btn('product','Edit',true,p.id)]))}</section>`)}
+if(page==='produk'){const tabs='<div class="row noprint" style="gap:8px;flex-wrap:wrap;margin-bottom:16px">'+btn('product-tab','Daftar Barang',productTab!=='barang','barang')+btn('product-tab','Daftar Jasa',productTab!=='jasa','jasa')+btn('product-tab','Stok & Opname',productTab!=='stok','stok')+'</div>';html=tabs+(productTab==='stok'?renderOpnamePage():productTab==='jasa'?renderServiceList():head('Barang & Jasa','Barang baru hanya dapat didaftarkan melalui Nota Pembelian. Harga jual dan lokasi gudang/rak dapat diedit di sini.','')+`<section class="panel">${table(['SKU / Barcode','Barang','Gudang / Rak','HPP','Harga jual','Harga grosir','Harga reseller','Harga member','Poin affiliate','Stok','Aksi'],data.products.map(p=>[esc(p.sku)+'<div class="muted">'+esc(p.barcode)+'</div>',esc(p.name)+'<div class="muted">'+esc(p.category)+' · '+esc(p.unit)+'</div>',esc(p.storage_location||'Belum ditentukan'),money(p.cost),money(p.price),tierPrice(p,'Grosir')===null?'—':money(tierPrice(p,'Grosir')),tierPrice(p,'Reseller')===null?'—':money(tierPrice(p,'Reseller')),tierPrice(p,'Member')===null?'—':money(tierPrice(p,'Member')),Number(p.affiliate_points||0).toLocaleString('id-ID'),p.stock,btn('product','Edit',true,p.id)]))}</section>`)}
 if(page==='pembelian')html=head('Pembelian & Penerimaan','Satu nota berisi banyak barang, ongkir, diskon, pajak dan lampiran PDF/foto.',btn('receive','+ Nota pembelian'))+`<section class="panel">${table(['Tanggal','Pemasok / Nota','Barang','Total','Sumber','Aksi'],purchaseDocs.map(p=>[esc(p.invoice_date),esc(p.vendor)+' / '+esc(p.invoice),p.items.length+' barang',money(p.total),esc(p.source),btn('purchase-detail','Lihat nota',true,p.id)]))}</section>`;
 
 if(page==='operasional')html=renderOperationalPage(s);
@@ -446,12 +446,14 @@ function productsUI(){
 function addService(id){if(!ownShift())return notify('Buka shift terlebih dahulu');if(localStorage.getItem('larisindo.pending.'+data.me.id))return notify('Selesaikan pembayaran tertunda dahulu');const s=services.find(x=>x.id===id&&x.active);if(!s)return notify('Jasa tidak tersedia');const c=cart.find(x=>x.id===id&&x.type==='service');if(c)c.qty++;else cart.push({id,qty:1,type:'service'});cartUI()}
 function add(id){if(!ownShift())return notify('Buka shift terlebih dahulu');if(localStorage.getItem('larisindo.pending.'+data.me.id))return notify('Selesaikan pembayaran tertunda dahulu');let p=data.products.find(p=>p.id===id),c=cart.find(c=>c.id===id);if((c?.qty||0)>=p.stock)return notify('Stok tidak cukup');if(c)c.qty++;else cart.push({id,qty:1});cartUI()}
 function selectedMember(){return commercialData.members.find(m=>m.id===selectedMemberId&&m.active)}
+function tierPrice(p,tier){const x=commercialData.prices.filter(x=>x.product_id===p.id&&x.tier===tier&&x.min_qty===1)[0];return x?Number(x.unit_price):null}
 function memberUnitPrice(c,p){
  if(c.type==='service')return p.price;
  const m=selectedMember(),s=commercialData.settings||{};
- if(!m||!['Grosir','Reseller'].includes(m.tier))return p.price;
+ if(!m||!['Grosir','Reseller','Member'].includes(m.tier))return p.price;
  const special=commercialData.prices.filter(x=>x.product_id===p.id&&x.tier===m.tier&&x.min_qty<=c.qty).sort((a,b)=>b.min_qty-a.min_qty)[0];
  if(special)return Math.min(Number(p.price),Number(special.unit_price));
+ if(m.tier==='Member')return p.price;
  const minimum=m.tier==='Grosir'?s.wholesale_min_qty:s.reseller_min_qty;
  const discount=m.tier==='Grosir'?s.wholesale_discount_percent:s.reseller_discount_percent;
  return c.qty>=Number(minimum||1)?Math.round(p.price*(100-Number(discount||0))/100):p.price;
@@ -680,11 +682,25 @@ if(a==='import-products')return openProductImport();
 if(activeOpname()&&['product','import-products','adjust','receive'].includes(a))return notify('Sedang proses stock opname. Perubahan barang dikunci.');
 if(a==='product'){
  const p=data.products.find(x=>x.id===id);
- if(!p)return notify('Barang baru harus dimasukkan melalui menu Pembelian → Nota Pembelian.');
- return editModal('Edit harga & lokasi · '+p.name,`<p><strong>${esc(p.name)}</strong> · ${esc(p.sku)} · ${esc(p.barcode||'Tanpa barcode')}</p><div class="formgrid">${field('price','Harga jual (minimal HPP)',p.price,'number','min="1" required')}${field('storage_location','Gudang / Rak',p.storage_location||'','text','maxlength="100" placeholder="Contoh: Gudang 1 / Rak A1"')}</div><label class="field">Foto produk (JPG/PNG/WebP, maks. 2 MB)<input id="productPhotoInput" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="small">Kosongkan jika foto tidak berubah.</p><p class="small">HPP menggunakan Moving Weighted Average saat pembelian. Nama, SKU dan barcode barang baru hanya diinput lewat Nota Pembelian.</p>`,async f=>{
- if(Number(f.price)<Number(p.cost))throw Error('Harga jual tidak boleh di bawah HPP '+money(p.cost));
+ if(!p)return notify('Barang baru harus dimasukkan melalui Nota Pembelian.');
+ const tierField=(name,label,tier)=>field(name,label,tierPrice(p,tier)??'','number','min="'+Math.ceil(Number(p.cost))+'" max="'+Math.floor(Number(p.price))+'" step="1" placeholder="Kosong = harga biasa"');
+ return editModal('Edit harga & lokasi · '+p.name,
+ '<p><strong>'+esc(p.name)+'</strong> · '+esc(p.sku)+' · '+esc(p.barcode||'Tanpa barcode')+'</p>'+
+ '<div class="formgrid">'+field('price','Harga jual (minimal HPP)',p.price,'number','min="1" required')+field('storage_location','Gudang / Rak',p.storage_location||'','text','maxlength="100"')+'</div>'+
+ '<h3>Harga khusus per barang</h3><p class="small">Harga grosir, reseller, dan member dapat diubah kapan saja. Kosongkan untuk mengikuti harga biasa atau aturan diskon umum. Harga tidak boleh lebih rendah dari HPP.</p>'+
+ '<div class="formgrid">'+tierField('wholesale','Harga grosir (Rp)','Grosir')+tierField('reseller','Harga reseller (Rp)','Reseller')+tierField('member','Harga member (Rp)','Member')+field('affiliate_points','Poin affiliate per unit',p.affiliate_points||0,'number','min="0" max="1000000" step="1" required')+'</div>'+
+ '<p class="small">Bonus poin per unit diberikan saat pembelian lunas oleh pelanggan kategori Affiliate.</p>'+
+ '<label class="field">Foto produk (JPG/PNG/WebP, maks. 2 MB)<input id="productPhotoInput" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="small">Kosongkan jika foto tidak berubah.</p>'+
+ '<p class="small">HPP mengikuti Moving Weighted Average saat pembelian. Nama, SKU dan barcode barang baru hanya diinput lewat Nota Pembelian.</p>',async f=>{
+ const price=Number(f.price);
+ if(!Number.isFinite(price)||price<Number(p.cost))throw Error('Harga jual tidak boleh di bawah HPP '+money(p.cost));
+ const parseTier=(name)=>{if(f[name]==='')return null;const v=Number(f[name]);if(!Number.isInteger(v)||v<Number(p.cost)||v>price)throw Error('Harga '+name+' harus antara HPP dan harga jual');return v};
+ const wholesale=parseTier('wholesale'),reseller=parseTier('reseller'),member=parseTier('member'),points=Number(f.affiliate_points);
+ if(!Number.isInteger(points)||points<0||points>1000000)throw Error('Poin affiliate harus bilangan bulat 0–1.000.000');
+ await rpc('pos_product',{p_id:p.id,p_sku:p.sku,p_barcode:p.barcode||'',p_name:p.name,p_category:p.category,p_unit:p.unit,p_price:price,p_cost:Number(p.cost),p_minimum:Number(p.minimum)});
+ await rpc('pos_product_tier_save',{p_product:p.id,p_wholesale:wholesale,p_reseller:reseller,p_member:member,p_affiliate_points:points});
+ await rpc('pos_set_product_location',{p_product:p.id,p_location:f.storage_location||''});
  const file=$('#productPhotoInput')?.files?.[0];if(file)await uploadProductPhoto(p.id,file);
- try{await rpc('pos_product',{p_id:p.id,p_sku:p.sku,p_barcode:p.barcode||'',p_name:p.name,p_category:p.category,p_unit:p.unit,p_price:Number(f.price),p_cost:Number(p.cost),p_minimum:Number(p.minimum)});await rpc('pos_set_product_location',{p_product:p.id,p_location:f.storage_location||''})}catch(e){throw Error('Foto tersimpan, tetapi pembaruan harga/lokasi gagal: '+e.message)}
  });
 }
 if(a==='adjust'){let p=data.products.find(p=>p.id===id);return editModal('Opname: '+p.name,field('stock','Stok fisik',p.stock,'number','min="0" required')+field('reason','Alasan / berita acara','','text','minlength="5" required')+'<p>Koreksi ini memengaruhi nilai persediaan dan meninggalkan jejak permanen.</p>',f=>rpc('pos_adjust',{p_id:id,p_stock:Number(f.stock),p_reason:f.reason}))}
