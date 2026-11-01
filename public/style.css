@@ -306,3 +306,23 @@ body:before,body:after{content:none!important;display:none!important}
 main{isolation:auto!important}
 main:before,main:after{content:none!important;display:none!important}
 @media(max-width:800px){html{background-position:27% center!important;background-attachment:scroll!important}body{background:transparent!important}}
+
+/* 2026-11 — Cashier color consistency and high-contrast text */
+.pos-banner{background:linear-gradient(115deg,#e8faffed 0%,#bceff3ed 52%,#65c9d3e8 100%)!important;border:1px solid #bde8ed!important;box-shadow:0 7px 22px #168f9c20!important;color:#075c70!important}
+.pos-banner h2,.pos-banner h2 *{color:#075b70!important;text-shadow:none!important;opacity:1!important}
+.pos-banner p{color:#1d7385!important}
+.pos-eyebrow{color:#157c8b!important}
+.pos-banner-art{filter:drop-shadow(0 7px 11px #318e9b35)!important}
+.pos-count{background:#e4f9fc!important;color:#08768a!important}
+.pos-chip{background:#f5fdff!important;border-color:#c9eaf0!important;color:#126d7d!important}
+.pos-chip.selected{background:#12a7b5!important;border-color:#12a7b5!important;color:#fff!important}
+.pos-modern #search,.pos-filter-row #posCategories{background:#ffffffea!important;border-color:#c6e9ef!important;color:#126b7b!important}
+.pos-modern .pos-product,.pos-modern .pos-catalog,.pos-modern .pos-cart{background:#ffffffd9!important;border-color:#d7eff3!important}
+.pos-modern .pos-product:hover{border-color:#3db7c4!important}
+.pos-modern .pos-pager button{background:#e6f8fb!important;border-color:#c4e9ee!important;color:#086a7c!important}
+.pos-cart-head h2,.pos-catalog-title h2,.pos-modern .total,.pos-modern .total *{color:#075d70!important}
+.pos-modern .pos-cart .btn:not(.secondary):not(.danger){background:linear-gradient(115deg,#29b7c2,#069caa)!important;color:white!important}
+.pos-modern .pos-cart .btn:disabled{opacity:.48}
+.pos-modern .cartline{border-bottom-color:#d6edf0!important}
+.pos-modern .cartline strong{color:#075b70!important}
+.pos-modern .cartline .small{color:#4a8a98!important}
