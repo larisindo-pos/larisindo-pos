@@ -322,8 +322,8 @@ function renderCashierWorkspace(s){
  html+='<section class="panel"><h2>Kas Laci · Buka / Tutup / Ganti Shift</h2><div class="row">'+(s?btn('close','Tutup & Serah Terima Shift'):!activeDrawerStatus?btn('open','Buka Kas Laci'): '<div class="notice">Laci sedang digunakan oleh <strong>'+esc(activeDrawerStatus?.cashier_name||'kasir lain')+'</strong>. Petugas sebelumnya perlu Tutup Shift → Hitung Uang sebelum kasir berikutnya membuka shift.</div>')+'</div>'+
  (s?'<p>Modal awal '+money(s.opening_cash)+' · Kas sistem '+money(expected(s))+'</p>':'<p>Modal kas awal standar Rp500.000; hitung dan konfirmasi kas fisik saat membuka.</p>')+'</section>';
  html+='<section class="panel"><h2>Laporan Kas Laci per Pekan</h2><div class="row">'+btn('cashier-week-prev','← Pekan sebelumnya',true)+'<strong>'+cashierWeekLabel(bounds)+'</strong>'+btn('cashier-week-next','Pekan berikutnya →',true)+'</div>'+
- table(['Tanggal','Kasir','Buka','Tutup','Kas Sistem','Kas Fisik','Selisih','Status'],shifts.map(x=>[
- day(x.opened_at),esc(data.users.find(u=>u.id===x.cashier_id)?.name||'Kasir'),date(x.opened_at),x.closed_at?date(x.closed_at):'—',money(x.closed_at?x.expected_cash:expected(x)),x.closed_at?money(x.counted_cash):'—',x.closed_at?money(x.difference):'—',x.closed_at?(x.verified_at?'Terverifikasi':'Belum diverifikasi'):'Aktif'
+ table(['Tanggal','Kasir','Buka','Tutup','Metode Pembayaran','Kas Sistem','Kas Fisik','Selisih','Status'],shifts.map(x=>[
+ day(x.opened_at),esc(data.users.find(u=>u.id===x.cashier_id)?.name||'Kasir'),date(x.opened_at),x.closed_at?date(x.closed_at):'—',esc(x.payment_methods||'—'),money(x.closed_at?x.expected_cash:expected(x)),x.closed_at?money(x.counted_cash):'—',x.closed_at?money(x.difference):'—',x.closed_at?(x.verified_at?'Terverifikasi':'Belum diverifikasi'):'Aktif'
  ]))+'</section>';
  }
  return html;
