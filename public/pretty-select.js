@@ -61,12 +61,9 @@
   popup.style.maxHeight=Math.max(140,above?rect.top-20:innerHeight-rect.bottom-20)+'px';
   popup.style.top=(above?'auto':rect.bottom+7+'px');popup.style.bottom=above?(innerHeight-rect.top+7+'px'):'auto';
   button.setAttribute('aria-expanded','true');active={button,popup};
-  if(options.length>9)popup.querySelector('input')?.focus();
+  if(options.length>9 && !window.matchMedia('(pointer: coarse)').matches)popup.querySelector('input')?.focus();
  }
  function enhance(){
-  // Touch devices use the OS-native dropdown: reliable taps, scrolling and option selection.
-  // Keep the tosca native-select styling; desktop retains the floating menu.
-  if(navigator.maxTouchPoints>0 || window.matchMedia('(pointer: coarse)').matches)return;
   document.querySelectorAll('select:not([multiple]):not([data-pretty-ready])').forEach(select=>{
    if(select.closest('.pretty-select-shell'))return;
    select.dataset.prettyReady='1';
