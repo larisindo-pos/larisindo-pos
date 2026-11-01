@@ -55,10 +55,15 @@
   const host=select.closest('dialog[open]')||document.body;host.append(popup);
   const rect=button.getBoundingClientRect(),width=Math.max(210,rect.width);
   const left=Math.max(10,Math.min(rect.left,innerWidth-width-10));
-  const roomBelow=innerHeight-rect.bottom;
-  const above=roomBelow<250&&rect.top>roomBelow;
+  // Prefer opening downwards; only flip when the actual menu will not fit.
+  const viewportBottom=window.visualViewport ? window.visualViewport.offsetTop+window.visualViewport.height : innerHeight;
+  const viewportTop=window.visualViewport ? window.visualViewport.offsetTop : 0;
+  const roomBelow=Math.max(0,viewportBottom-rect.bottom-12);
+  const roomAbove=Math.max(0,rect.top-viewportTop-12);
+  const desiredHeight=Math.min(340,Math.ceil(popup.scrollHeight)+2);
+  const above=roomBelow<Math.min(desiredHeight,150)&&roomAbove>roomBelow;
   popup.style.width=Math.min(width,innerWidth-20)+'px';popup.style.left=left+'px';
-  popup.style.maxHeight=Math.max(140,above?rect.top-20:innerHeight-rect.bottom-20)+'px';
+  popup.style.maxHeight=Math.max(65,above?roomAbove:roomBelow)+'px';
   popup.style.top=(above?'auto':rect.bottom+7+'px');popup.style.bottom=above?(innerHeight-rect.top+7+'px'):'auto';
   button.setAttribute('aria-expanded','true');active={button,popup};
   if(options.length>9 && !window.matchMedia('(pointer: coarse)').matches)popup.querySelector('input')?.focus();
