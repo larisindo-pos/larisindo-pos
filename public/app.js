@@ -37,7 +37,8 @@ function head(title,desc,buttons=''){return `<div class="top"><div><h1>${title}<
 const field=(name,label,value='',type='text',attrs='')=>`<label class="field">${label}<input name="${name}" type="${type}" value="${esc(value)}" ${attrs}></label>`,select=(name,label,options)=>`<label class="field">${label}<select name="${name}">${options.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select></label>`;
 function table(headers,rows){return `<div style="overflow:auto"><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${headers.length}">Belum ada data.</td></tr>`}</tbody></table></div>`}function cards(entries){return '<div class="cards">'+entries.map(([l,v])=>`<div class="card"><div class="muted">${l}</div><div class="metric">${v}</div></div>`).join('')+'</div>'}
 function saleTable(sales){return table(['Nota / Waktu','Kasir','Metode Pembayaran','Status Pembayaran','Total','Aksi'],sales.map(s=>{
- const method=String(s.method||'—');
+ const credit=cashierCredits.find(x=>x.id===s.id);
+ const method=String(s.method||'—')+(s.method==='Piutang'&&Number(credit?.paid||0)>0?' → '+String(credit.payment_methods||'—'):'');
  const status=method==='Tunai'?'Lunas':method==='Piutang'?(Number(cashierCredits.find(x=>x.id===s.id)?.remaining??s.total)<=0?'Terverifikasi / Lunas':'Menunggu pelunasan'):(s.verified_at?'Terverifikasi':'Menunggu verifikasi');
  return ['LRS-'+s.receipt_no+'<div class="muted">'+date(s.created_at)+'</div>',esc(data.users.find(u=>u.id===s.cashier_id)?.name||s.cashier_id.slice(0,8)),esc(method),'<span class="badge">'+esc(status)+'</span>',money(s.total),btn('receipt','Lihat / Cetak',true,s.id)+(paymentEvidence.some(e=>e.sale_id===s.id)?btn('payment-evidence','Bukti foto',true,s.id):'')+(finance()&&method!=='Tunai'&&method!=='Piutang'&&!s.verified_at?btn('verify-sale','Verifikasi',false,s.id):'')];
  }))}
@@ -306,8 +307,8 @@ function renderCashierWorkspace(s){
  }else if(cashierTab==='piutang'){
  const credits=cashier?cashierCredits.filter(x=>x.cashier_id===data.me.id):cashierCredits;
  html+='<section class="panel"><h2>Daftar Piutang & Faktur Penjualan</h2>'+
- table(['Faktur','Pelanggan','Tanggal','Jatuh Tempo','Total','Dibayar','Sisa','Status / Aksi'],credits.map(x=>[
- 'LRS-'+x.receipt_no,esc(x.customer||'—'),date(x.created_at),esc(x.due_date||'—'),money(x.total),money(x.paid),money(x.remaining),
+ table(['Faktur','Pelanggan','Tanggal','Jatuh Tempo','Total','Dibayar','Metode Pelunasan','Sisa','Status / Aksi'],credits.map(x=>[
+ 'LRS-'+x.receipt_no,esc(x.customer||'—'),date(x.created_at),esc(x.due_date||'—'),money(x.total),money(x.paid),esc(x.payment_methods||'—'),money(x.remaining),
  (Number(x.remaining)<=0?'Lunas':'Belum lunas')+' '+btn('receipt','Lihat Faktur',true,x.id)
  ]))+'<p class="small">Kasir dapat menerima pembayaran faktur sendiri. Finance dapat memantau pencatatan pelunasan.</p></section>';
  }else if(cashierTab==='hadir'){
