@@ -206,3 +206,48 @@ dialog::backdrop{background:#123f3f7a;backdrop-filter:blur(3px)}
 .commercial-showcase .panel td{color:#244a45}
 @media(max-width:650px){main:before{width:44vw;height:130px;opacity:.08}.panel,.card,.commercial-showcase .panel{border-radius:16px;padding:14px}header .brand{font-size:16px}}
 @media(prefers-reduced-motion:reduce){.btn,.nav,.product{transition:none!important}}
+
+/* Larisindo unified Islamic pastel theme — user reference 2026-11 */
+:root{--lc-teal:#59b7c1;--lc-deep:#245b65;--lc-soft:#e0f5f7;--lc-border:#dceef0;--lc-text:#263e43;--lc-muted:#66858b}
+html{background:#f8fbfc}
+body,body:has(.commercial-showcase){background:linear-gradient(180deg,#fafdfe 0%,#f7fbfc 50%,#f2f9fa 100%);color:#263e43}
+header,body:has(.commercial-showcase) header{background:#ffffffed;border-bottom:1px solid #e5f0f1;box-shadow:0 5px 16px #3c8a9812}
+header .logo{background:linear-gradient(135deg,#205c64,#4eb3b7);box-shadow:0 4px 11px #2b7e8628}
+header .btn,header button:not(.nav){border-radius:14px}
+aside,body:has(.commercial-showcase) aside{background:linear-gradient(180deg,#c8eaf0,#c5e7ed 65%,#cbeaf0);border-right:1px solid #e6f5f7;box-shadow:none}
+aside .nav,body:has(.commercial-showcase) aside .nav{color:#28464b;border-radius:13px}
+aside .nav:hover,body:has(.commercial-showcase) aside .nav:hover{background:#effbfc;color:#245f68}
+aside .nav.active,body:has(.commercial-showcase) aside .nav.active{background:linear-gradient(110deg,#ffffff,#f4fbfd);color:#254e55;box-shadow:0 5px 14px #398b981a;font-weight:750}
+main{isolation:isolate}
+main:before{right:16px;top:12px;width:min(360px,35vw);height:230px;opacity:.17;background-image:radial-gradient(circle at center,transparent 7px,#57b5bc 8px,#57b5bc 9px,transparent 10px),repeating-conic-gradient(from 45deg,#6abcc1 0 2deg,transparent 2deg 43deg,#6abcc1 43deg 45deg,transparent 45deg 90deg);background-size:60px 60px,120px 120px;mask-image:linear-gradient(to left,#000 20%,transparent)}
+main:after{content:"";position:absolute;z-index:-1;right:18px;top:30px;width:min(205px,23vw);aspect-ratio:1;pointer-events:none;opacity:.12;background:linear-gradient(45deg,transparent 37%,#168b99 38% 42%,transparent 43% 57%,#168b99 58% 62%,transparent 63%),linear-gradient(-45deg,transparent 37%,#168b99 38% 42%,transparent 43% 57%,#168b99 58% 62%,transparent 63%);border:12px double #168b99;transform:rotate(45deg);border-radius:22px}
+h1,h2,h3{color:#253e44}
+.top p,.muted{color:#67858b}
+.panel,.card,.login,.commercial-showcase .panel{background:#fffffff2;border:1px solid #e8f3f4;box-shadow:0 9px 24px #387c8515,0 2px 6px #397d8610;border-radius:19px;backdrop-filter:blur(10px)}
+.btn,.commercial-showcase .commercial-member-actions .btn:not(.secondary){background:linear-gradient(115deg,#65bfca,#3ba6b2);color:#fff;border-radius:13px;box-shadow:0 5px 13px #3699a635}
+.btn.secondary,.commercial-showcase .commercial-member-actions .btn.secondary{background:linear-gradient(130deg,#e8f8fa,#d5f0f4);border:1px solid #cceaf0;color:#2c6470;box-shadow:0 3px 10px #4f9ea919}
+.btn.danger{background:#fff1f2;color:#ad5661;border-color:#f4dce0}
+.btn:hover:not(:disabled){box-shadow:0 6px 16px #3596a43c}
+.chip,.status{background:#ddf4f6;color:#287783}
+table th{color:#63858c;border-bottom-color:#dcebed}
+table td{color:#294a50;border-bottom-color:#ebf3f4}
+table tbody tr:nth-child(even){background:#e1f4f6a1}
+table tbody tr:hover{background:#d4eff2b3}
+input,textarea,select{background:#fff;border-color:#d8eaed;color:#294a50}
+input:focus,textarea:focus{border-color:#52b7c0;outline-color:#66c1c72d}
+dialog{background:#fcffff;border-color:#d9eef1}
+.product{background:#fff;border-color:#e0eff1}
+.product:hover{border-color:#65bdc6}
+.price{color:#278b97}
+.total{color:#2a6971}
+.commercial-showcase .panel{background:#fffffff2}
+.commercial-showcase>.row.noprint{background:#cfeef1;border-color:#eaf8fa;box-shadow:0 3px 11px #4799a321}
+.commercial-showcase>.row.noprint .btn:not(.secondary){background:linear-gradient(110deg,#e9fafc,#c1e9ed);color:#285f67;box-shadow:0 3px 9px #38949e2b}
+.commercial-showcase>.row.noprint .btn.secondary{color:#2d5961}
+.commercial-showcase .panel tbody tr:nth-child(even){background:#d8f0f3a8}
+.commercial-showcase .panel tbody tr:hover{background:#ccebf0}
+.commercial-showcase .commercial-member-actions .btn:not(.secondary){background:linear-gradient(110deg,#6dc5ce,#3ca8b5)}
+.commercial-showcase .commercial-member-actions .btn.secondary{background:linear-gradient(120deg,#e8f9fa,#d5eff3);color:#2b6470}
+.mobile-nav{background:#ffffffed;border-top-color:#d6eef1}
+.mobile-nav button.active{color:#2b8994}
+@media(max-width:650px){main:before{opacity:.08}main:after{opacity:.06;width:100px}.commercial-showcase>.row.noprint{max-width:100%;overflow-x:auto}}
