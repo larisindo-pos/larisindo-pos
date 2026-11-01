@@ -258,12 +258,16 @@ function openFinanceEntry(){
 
 
 function cashierWeekBounds(){
- // Sunday–Saturday, anchored to today's calendar date in WITA, not device timezone or UTC.
+ // Monday–Sunday based on WITA, independent of device timezone.
  const today=day(new Date()),d=new Date(today+'T12:00:00Z');
- d.setUTCDate(d.getUTCDate()-d.getUTCDay()+cashierWeekOffset*7);
+ d.setUTCDate(d.getUTCDate()-(d.getUTCDay()+6)%7+cashierWeekOffset*7);
  const start=d.toISOString().slice(0,10);
  d.setUTCDate(d.getUTCDate()+6);
  return {start,end:d.toISOString().slice(0,10)};
+}
+function cashierWeekLabel(bounds){
+ const fmt=iso=>new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(iso+'T12:00:00Z'));
+ return fmt(bounds.start)+' – '+fmt(bounds.end);
 }
 function cashierWeekShifts(){
  const {start,end}=cashierWeekBounds();
@@ -291,7 +295,7 @@ function renderCashierWorkspace(s){
  ]))+'<p class="small">Kasir dapat menerima pembayaran faktur sendiri. Finance dapat memantau pencatatan pelunasan.</p></section>';
  }else if(cashierTab==='hadir'){
  const shifts=cashierWeekShifts(),bounds=cashierWeekBounds();
- html+='<section class="panel"><h2>Laporan Kedatangan Kasir · Pekanan</h2><div class="row">'+btn('cashier-week-prev','← Pekan sebelumnya',true)+'<strong>'+bounds.start+' s.d. '+bounds.end+'</strong>'+btn('cashier-week-next','Pekan berikutnya →',true)+btn('cashier-week-today','Pekan ini',true)+'</div>'+
+ html+='<section class="panel"><h2>Laporan Kedatangan Kasir · Pekanan</h2><div class="row">'+btn('cashier-week-prev','← Pekan sebelumnya',true)+'<strong>'+cashierWeekLabel(bounds)+'</strong>'+btn('cashier-week-next','Pekan berikutnya →',true)+btn('cashier-week-today','Pekan ini',true)+'</div>'+
  table(['Tanggal','Kasir','Waktu datang / buka shift','Waktu selesai','Durasi','Status'],shifts.map(x=>{
  const mins=x.closed_at?Math.round((new Date(x.closed_at)-new Date(x.opened_at))/60000):null;
  return [day(x.opened_at),esc(data.users.find(u=>u.id===x.cashier_id)?.name||'Kasir'),date(x.opened_at),x.closed_at?date(x.closed_at):'Masih bertugas',mins===null?'—':Math.floor(mins/60)+'j '+mins%60+'m',x.closed_at?'Selesai':'Aktif'];
@@ -300,7 +304,7 @@ function renderCashierWorkspace(s){
  const shifts=cashierWeekShifts(),bounds=cashierWeekBounds();
  html+='<section class="panel"><h2>Kas Laci · Buka / Tutup / Ganti Shift</h2><div class="row">'+(s?btn('close','Tutup & Serah Terima Shift'):!activeDrawerStatus?btn('open','Buka Kas Laci'): '<div class="notice">Laci sedang digunakan oleh <strong>'+esc(activeDrawerStatus?.cashier_name||'kasir lain')+'</strong>. Petugas sebelumnya perlu Tutup Shift → Hitung Uang sebelum kasir berikutnya membuka shift.</div>')+'</div>'+
  (s?'<p>Modal awal '+money(s.opening_cash)+' · Kas sistem '+money(expected(s))+'</p>':'<p>Modal kas awal standar Rp500.000; hitung dan konfirmasi kas fisik saat membuka.</p>')+'</section>';
- html+='<section class="panel"><h2>Laporan Kas Laci per Pekan</h2><div class="row">'+btn('cashier-week-prev','← Pekan sebelumnya',true)+'<strong>'+bounds.start+' s.d. '+bounds.end+'</strong>'+btn('cashier-week-next','Pekan berikutnya →',true)+'</div>'+
+ html+='<section class="panel"><h2>Laporan Kas Laci per Pekan</h2><div class="row">'+btn('cashier-week-prev','← Pekan sebelumnya',true)+'<strong>'+cashierWeekLabel(bounds)+'</strong>'+btn('cashier-week-next','Pekan berikutnya →',true)+'</div>'+
  table(['Tanggal','Kasir','Buka','Tutup','Kas Sistem','Kas Fisik','Selisih','Status'],shifts.map(x=>[
  day(x.opened_at),esc(data.users.find(u=>u.id===x.cashier_id)?.name||'Kasir'),date(x.opened_at),x.closed_at?date(x.closed_at):'—',money(x.closed_at?x.expected_cash:expected(x)),x.closed_at?money(x.counted_cash):'—',x.closed_at?money(x.difference):'—',x.closed_at?(x.verified_at?'Terverifikasi':'Belum diverifikasi'):'Aktif'
  ]))+'</section>';
