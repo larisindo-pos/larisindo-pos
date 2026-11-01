@@ -315,29 +315,30 @@ function openServiceForm(id){
  const status=document.querySelector('#dialog [name=active]');if(status)status.value=String(s.active??true);
 }
 function commercialUI(){
- const tabs=[['members','Member & Mitra'],['vouchers','Voucher'],['prices','Harga Grosir'],['settings','Poin & Affiliate']];
+ const tabs=[['members','Member & Mitra'],['vouchers','Voucher'],['prices','Harga Grosir']];
  let html=head('Member & Mitra Penjualan','Kelola pelanggan loyal, voucher, grosir, reseller tanpa stok, dan affiliate.');
  html+='<div class="row noprint" style="gap:8px;flex-wrap:wrap;margin-bottom:16px">'+tabs.map(([id,label])=>btn('commercial-tab',label,commercialTab!==id,id)).join('')+'</div>';
- if(commercialTab==='members')html+='<section class="panel"><h2>Daftar Member & Mitra</h2>'+btn('commercial-member-new','+ Tambah Member')+table(['Kode','Nama','Telepon','Jenis','Poin','Aksi'],commercialData.members.map(m=>[esc(m.member_code),esc(m.name),esc(m.phone||'—'),esc(m.tier),String(m.points_balance),btn('commercial-member-edit','Edit',true,m.id)]))+'</section>';
+ if(commercialTab==='members')html+='<section class="panel"><div class="commercial-member-toolbar"><h2>Daftar Member & Mitra</h2><div class="commercial-member-actions">'+btn('commercial-member-new','+ Tambah Member')+(data.me.role==='Super Admin'?btn('commercial-points-settings','⚙ Pengaturan Poin',true):'')+'</div></div>'+table(['Kode','Nama','Telepon','Jenis','Poin','Aksi'],commercialData.members.map(m=>[esc(m.member_code),esc(m.name),esc(m.phone||'—'),esc(m.tier),String(m.points_balance),btn('commercial-member-edit','Edit',true,m.id)]))+'</section>';
  if(commercialTab==='vouchers')html+='<section class="panel"><h2>Voucher Promosi</h2>'+btn('commercial-voucher-new','+ Buat Voucher')+table(['Kode','Nama','Potongan','Minimal Belanja','Terpakai','Aksi'],commercialData.vouchers.map(v=>[esc(v.code),esc(v.title),v.discount_type==='percent'?v.discount_value+'%':money(v.discount_value),money(v.minimum_spend),v.usage_count+(v.usage_limit?' / '+v.usage_limit:''),btn('commercial-voucher-edit','Edit',true,v.id)]))+'<p class="small">Voucher tercatat. Potongan checkout belum diaktifkan.</p></section>';
  if(commercialTab==='prices')html+='<section class="panel"><h2>Harga Bertingkat Grosir & Reseller</h2>'+table(['Produk','Jenis','Minimal Qty','Harga per Unit'],commercialData.prices.map(p=>[esc(data.products.find(x=>x.id===p.product_id)?.name||p.product_id),esc(p.tier),p.min_qty,money(p.unit_price)]))+'<p class="small">Harga bertingkat disiapkan; integrasi checkout belum diaktifkan.</p></section>';
- if(commercialTab==='settings'){const s=commercialData.settings||{};
- html+='<section class="panel"><h2>Ringkasan Aturan Program Penjualan</h2><p class="small">Pengaturan tersimpan di database dan hanya dapat diubah Super Admin. Tidak langsung mengubah harga transaksi yang sudah terjadi.</p>'+
- table(['Pengaturan','Nilai saat ini'],[
- ['Belanja untuk memperoleh poin',money(s.points_earning_step||10000)],
- ['Poin yang didapat per kelipatan belanja',s.points_per_step??0],
- ['Nilai tukar 1 poin',money(s.point_value_rupiah??0)],
- ['Maksimal penukaran poin per transaksi',(s.max_points_redeem_percent??0)+'%'],
- ['Diskon grosir',(s.wholesale_discount_percent??0)+'%'],
- ['Minimal kuantitas grosir',s.wholesale_min_qty??1],
- ['Diskon reseller',(s.reseller_discount_percent??0)+'%'],
- ['Minimal kuantitas reseller',s.reseller_min_qty??1],
- ['Komisi affiliate',(s.affiliate_commission_percent??0)+'%'],
- ['Minimal transaksi affiliate',money(s.affiliate_minimum_order??0)],
- ['Masa tunggu komisi affiliate',(s.affiliate_hold_days??0)+' hari']
- ])+'<p class="small">Catatan: aturan ini disimpan sebagai konfigurasi. Penerapan otomatis pada checkout, poin dan komisi membutuhkan integrasi transaksi terpisah.</p></section>';
- }
+
  return html;
+}
+function commercialPointsForm(){
+ if(data.me.role!=='Super Admin')return notify('Hanya Super Admin yang dapat mengatur poin.');
+ const s=commercialData.settings||{};
+ editModal('⚙ Pengaturan Poin Member',
+ '<p class="small">Atur cara member mendapatkan poin. Perubahan hanya berlaku untuk transaksi berikutnya.</p>'+
+ field('step','Setiap belanja (Rp)',s.points_earning_step??10000,'number','min="1" step="1" required')+
+ field('earned','Poin diperoleh',s.points_per_step??0,'number','min="0" step="1" required')+
+ field('value','Nilai tukar 1 poin (Rp)',s.point_value_rupiah??0,'number','min="0" step="1" required')+
+ field('redeem','Maksimal penukaran poin (%)',s.max_points_redeem_percent??0,'number','min="0" max="100" step="1" required')+
+ '<p class="small">Perolehan poin aktif pada penjualan member. Penukaran poin saat pembayaran belum tersedia.</p>',
+ async f=>{
+  const step=Number(f.step),earned=Number(f.earned),value=Number(f.value),redeem=Number(f.redeem);
+  if(![step,earned,value,redeem].every(Number.isInteger)||step<1||earned<0||value<0||redeem<0||redeem>100)throw Error('Isi nilai poin dengan bilangan bulat yang valid.');
+  await rpc('pos_member_points_settings_save',{p_step:step,p_earned:earned,p_value:value,p_redeem:redeem});
+ });
 }
 function commercialMemberForm(id){
  const m=commercialData.members.find(x=>x.id===id)||{};
@@ -609,7 +610,7 @@ async function showPurchaseDoc(id){
 }
 
 function editModal(title,html,fn){$('#save').hidden=false;$('#cancel').textContent='Batal';modal(title,html,fn)}
-async function action(a,id){if(a==='commercial-tab'){commercialTab=id;return render()}if(a==='commercial-member-new')return commercialMemberForm(null);if(a==='commercial-member-edit')return commercialMemberForm(id);if(a==='commercial-voucher-new')return commercialVoucherForm(null);if(a==='commercial-voucher-edit')return commercialVoucherForm(id);if(a==='pos-prev'||a==='pos-next'){posPage=Math.max(1,posPage+(a==='pos-next'?1:-1));return productsUI()}if(a==='pos-category'){posCategory=id;return productsUI()}if(a==='add-service')return addService(id);if(a==='service-new')return openServiceForm(null);if(a==='service-edit')return openServiceForm(id);if(a==='opname-email')return shareOpnameTemplate(id);if(a==='opname-cancel')return cancelOpnameOrder(id);if(a==='opname-template')return downloadOpnameTemplate(id,false);if(a==='opname-template-xlsx')return downloadOpnameTemplate(id,true);if(a==='opname-import')return openOpnameImport(id);if(a==='opname-transfer')return openStockTransfer();if(a==='opname-adjust-reason')return openStockReason();if(a==='opname-start')return editModal('Perintah Stock Opname',field('number','Nomor perintah','SO-'+day(new Date()).replaceAll('-',''),'text','required minlength="3"')+field('location','Lokasi / Gudang','Gudang Utama','text','required')+field('notes','Keterangan')+'<div class="notice"><strong>Template Stock Opname</strong><p class="small">Unduh daftar barang dalam format Excel atau CSV, isi kolom stok fisik, lalu impor hasilnya setelah perintah dibuat.</p>'+btn('opname-template','Unduh Template CSV',true)+btn('opname-template-xlsx','Unduh Template Excel',true)+btn('opname-email','Kirim Template via Email',true)+'</div>',f=>rpc('pos_opname_start',{p_id:crypto.randomUUID(),p_number:f.number,p_location:f.location,p_notes:f.notes}));
+async function action(a,id){if(a==='commercial-points-settings')return commercialPointsForm();if(a==='commercial-tab'){commercialTab=id;return render()}if(a==='commercial-member-new')return commercialMemberForm(null);if(a==='commercial-member-edit')return commercialMemberForm(id);if(a==='commercial-voucher-new')return commercialVoucherForm(null);if(a==='commercial-voucher-edit')return commercialVoucherForm(id);if(a==='pos-prev'||a==='pos-next'){posPage=Math.max(1,posPage+(a==='pos-next'?1:-1));return productsUI()}if(a==='pos-category'){posCategory=id;return productsUI()}if(a==='add-service')return addService(id);if(a==='service-new')return openServiceForm(null);if(a==='service-edit')return openServiceForm(id);if(a==='opname-email')return shareOpnameTemplate(id);if(a==='opname-cancel')return cancelOpnameOrder(id);if(a==='opname-template')return downloadOpnameTemplate(id,false);if(a==='opname-template-xlsx')return downloadOpnameTemplate(id,true);if(a==='opname-import')return openOpnameImport(id);if(a==='opname-transfer')return openStockTransfer();if(a==='opname-adjust-reason')return openStockReason();if(a==='opname-start')return editModal('Perintah Stock Opname',field('number','Nomor perintah','SO-'+day(new Date()).replaceAll('-',''),'text','required minlength="3"')+field('location','Lokasi / Gudang','Gudang Utama','text','required')+field('notes','Keterangan')+'<div class="notice"><strong>Template Stock Opname</strong><p class="small">Unduh daftar barang dalam format Excel atau CSV, isi kolom stok fisik, lalu impor hasilnya setelah perintah dibuat.</p>'+btn('opname-template','Unduh Template CSV',true)+btn('opname-template-xlsx','Unduh Template Excel',true)+btn('opname-email','Kirim Template via Email',true)+'</div>',f=>rpc('pos_opname_start',{p_id:crypto.randomUUID(),p_number:f.number,p_location:f.location,p_notes:f.notes}));
 if(a==='opname-count')return openOpnameCount(id);
 if(a==='opname-report')return showOpnameReport(id);
 if(a==='opname-process')return processOpname(id);
