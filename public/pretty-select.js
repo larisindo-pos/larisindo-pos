@@ -64,6 +64,9 @@
   if(options.length>9)popup.querySelector('input')?.focus();
  }
  function enhance(){
+  // Touch devices use the OS-native dropdown: reliable taps, scrolling and option selection.
+  // Keep the tosca native-select styling; desktop retains the floating menu.
+  if(navigator.maxTouchPoints>0 || window.matchMedia('(pointer: coarse)').matches)return;
   document.querySelectorAll('select:not([multiple]):not([data-pretty-ready])').forEach(select=>{
    if(select.closest('.pretty-select-shell'))return;
    select.dataset.prettyReady='1';
