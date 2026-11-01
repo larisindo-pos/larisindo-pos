@@ -290,3 +290,9 @@ body:after{display:none!important}
 main:after{display:none!important}
 main:before{opacity:.04!important}
 @media(max-width:760px){body:before{background-position:32% bottom!important}.panel,.card,dialog{background:#ffffffe3!important}}
+
+/* Exact reference image is supplied separately as islamic-background-original.png.
+   Remove the inaccurate vector reconstruction. */
+body:before{background-image:linear-gradient(90deg,#ffffff18,#ffffff06),url('/islamic-background-original.png')!important;background-color:#f9feff!important;background-size:cover!important;background-position:center center!important}
+body:has(.commercial-showcase):before{background-position:center center!important}
+@media(max-width:800px){body:before{background-position:27% center!important}}
