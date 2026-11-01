@@ -114,3 +114,10 @@ select:not([multiple]) option{background:#fff;color:#174b3c;padding:9px}
  select:not([multiple]) option:disabled{opacity:.45}
  select:not([multiple])::picker(select):popover-open{animation:cashierMenuIn .16s ease-out}
 }
+
+/* Member directory heading: title and actions on one responsive line */
+.commercial-member-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.commercial-member-toolbar h2{margin:0;flex:1;min-width:180px}
+.commercial-member-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.commercial-member-actions button{white-space:nowrap}
+@media(max-width:560px){.commercial-member-toolbar{align-items:flex-start}.commercial-member-actions{width:100%;justify-content:flex-start}.commercial-member-actions button{flex:1;min-width:130px}}
