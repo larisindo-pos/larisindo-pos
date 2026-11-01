@@ -258,14 +258,16 @@ function openFinanceEntry(){
 
 
 function cashierWeekBounds(){
- const d=new Date();d.setHours(0,0,0,0);
- const monday=(d.getDay()+6)%7;d.setDate(d.getDate()-monday+cashierWeekOffset*7);
- const start=new Date(d),end=new Date(d);end.setDate(end.getDate()+6);
- return {start:start.toISOString().slice(0,10),end:end.toISOString().slice(0,10)};
+ // Sunday–Saturday, anchored to today's calendar date in WITA, not device timezone or UTC.
+ const today=day(new Date()),d=new Date(today+'T12:00:00Z');
+ d.setUTCDate(d.getUTCDate()-d.getUTCDay()+cashierWeekOffset*7);
+ const start=d.toISOString().slice(0,10);
+ d.setUTCDate(d.getUTCDate()+6);
+ return {start,end:d.toISOString().slice(0,10)};
 }
 function cashierWeekShifts(){
  const {start,end}=cashierWeekBounds();
- return sharedShiftReport.filter(x=>{const d=day(x.opened_at);return d>=start&&d<=end});
+ return sharedShiftReport.filter(x=>{const d=day(x.opened_at);return d>=start&&d<=end}).sort((a,b)=>new Date(b.opened_at)-new Date(a.opened_at));
 }
 function renderCashierWorkspace(s){
  const cashier=data.me.role==='Kasir',sales=cashier?data.sales.filter(x=>x.cashier_id===data.me.id):data.sales;
@@ -289,7 +291,7 @@ function renderCashierWorkspace(s){
  ]))+'<p class="small">Kasir dapat menerima pembayaran faktur sendiri. Finance dapat memantau pencatatan pelunasan.</p></section>';
  }else if(cashierTab==='hadir'){
  const shifts=cashierWeekShifts(),bounds=cashierWeekBounds();
- html+='<section class="panel"><h2>Laporan Kedatangan Kasir · Pekanan</h2><div class="row">'+btn('cashier-week-prev','← Pekan sebelumnya',true)+'<strong>'+bounds.start+' s.d. '+bounds.end+'</strong>'+btn('cashier-week-next','Pekan berikutnya →',true)+'</div>'+
+ html+='<section class="panel"><h2>Laporan Kedatangan Kasir · Pekanan</h2><div class="row">'+btn('cashier-week-prev','← Pekan sebelumnya',true)+'<strong>'+bounds.start+' s.d. '+bounds.end+'</strong>'+btn('cashier-week-next','Pekan berikutnya →',true)+btn('cashier-week-today','Pekan ini',true)+'</div>'+
  table(['Tanggal','Kasir','Waktu datang / buka shift','Waktu selesai','Durasi','Status'],shifts.map(x=>{
  const mins=x.closed_at?Math.round((new Date(x.closed_at)-new Date(x.opened_at))/60000):null;
  return [day(x.opened_at),esc(data.users.find(u=>u.id===x.cashier_id)?.name||'Kasir'),date(x.opened_at),x.closed_at?date(x.closed_at):'Masih bertugas',mins===null?'—':Math.floor(mins/60)+'j '+mins%60+'m',x.closed_at?'Selesai':'Aktif'];
@@ -626,6 +628,7 @@ if(a==='product-tab'){productTab=id;return render()}
 if(a==='cashier-tab'){cashierTab=id;return render()}
 if(a==='cashier-week-prev'){cashierWeekOffset--;return render()}
 if(a==='cashier-week-next'){cashierWeekOffset++;return render()}
+if(a==='cashier-week-today'){cashierWeekOffset=0;await sync();return}
 if(a==='credit-payment')return openCreditPayment();
 if(a==='add')return add(id);if(a==='minus'){let c=cart.find(c=>c.id===id);if(c&&--c.qty<=0)cart=cart.filter(c=>c.id!==id);return cartUI()}if(a==='pay'||a==='retry'){if(activeOpname())return notify('Sedang proses stock opname. Penjualan dikunci.');return pay(a==='retry')}if(a==='receipt')return showReceipt(id);if(a==='payment-evidence')return openPaymentEvidence(id);if(a==='print')return window.print();if(a==='print-receipt'){let w=window.open('','_blank');if(!w)return notify('Izinkan pop-up untuk mencetak');w.document.write('<!doctype html><html><head><title>Nota Larisindo</title><style>body{font:12px monospace;max-width:320px;margin:auto}table{width:100%}td,th{text-align:left;padding:6px 0}button{display:none}@media print{@page{size:80mm auto;margin:4mm}}</style></head><body>'+$('#receipt').innerHTML+'</body></html>');w.document.close();w.onload=()=>w.print();return}
 if(a==='open'&&(page==='operasional'||(page==='kasir'&&cashierTab==='laci'))){
