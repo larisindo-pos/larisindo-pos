@@ -369,3 +369,8 @@ table tbody tr:nth-child(odd){background:rgba(255,255,255,.28)!important}
 .cashier-status-idle{background:rgba(255,255,255,.76);color:#608e98;border-color:#d8eef1}
 .cashier-status-idle .cashier-status-dot{background:#92bdc5;box-shadow:none}
 @media(max-width:540px){.cashier-heading-main{gap:8px}.cashier-active-status{font-size:11px;padding:7px 10px}.cashier-status-caption{display:none}.cashier-active-status strong{max-width:125px}}
+
+/* Login only: keep the remember-me checkbox immediately before its label. */
+#authForm .remember-login{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;width:100%;text-align:left}
+#authForm .remember-login input[type="checkbox"]{appearance:auto!important;-webkit-appearance:checkbox!important;display:block!important;position:static!important;flex:0 0 18px!important;width:18px!important;height:18px!important;min-width:18px!important;max-width:18px!important;margin:0!important;padding:0!important;vertical-align:middle}
+#authForm .remember-login>span{display:inline!important;flex:1 1 auto!important;min-width:0!important;width:auto!important;text-align:left!important}
