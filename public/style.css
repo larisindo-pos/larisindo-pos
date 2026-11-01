@@ -156,3 +156,53 @@ body:has(.commercial-showcase) aside .nav.active{background:linear-gradient(110d
 .commercial-showcase .panel td .btn.secondary{background:#f8faf7;color:#26554e}
 .commercial-showcase .panel td .btn.danger{background:#fff2f0;color:#ae4a4d}
 @media(max-width:700px){.commercial-showcase .panel{padding:15px;border-radius:17px}.commercial-showcase>.row.noprint{display:flex!important;overflow-x:auto;width:max-content}.commercial-showcase>.row.noprint .btn{padding:9px 12px}.commercial-showcase .commercial-member-toolbar{gap:12px}.commercial-showcase .commercial-member-actions{width:100%;justify-content:flex-start}.commercial-showcase .commercial-member-actions .btn{flex:1;padding:10px 12px}.commercial-showcase:before{width:60vw;opacity:.13}}
+
+/* Larisindo POS — unified White & Tosca Islamic visual system.
+   Cosmetic-only overrides: native layout, actions, data and dialogs stay intact. */
+:root{--lc-teal:#0b9d93;--lc-deep:#164e51;--lc-soft:#e6f8f4;--lc-border:#dbece7;--lc-text:#244642;--lc-muted:#69857d}
+html{background:#f6fbf9}
+body,body:has(.commercial-showcase){color:var(--lc-text);background:radial-gradient(ellipse at 78% 5%,#dff6f0 0,transparent 39%),radial-gradient(ellipse at 16% 68%,#f0faf6 0,transparent 43%),linear-gradient(135deg,#ffffff,#f5fbf9 55%,#f0f8f6);min-height:100vh}
+header,body:has(.commercial-showcase) header{background:linear-gradient(110deg,#ffffffed,#f3fcf9ed);border-bottom:1px solid #dceee9;box-shadow:0 4px 20px #164e5110;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+header .brand{color:#194c4d;letter-spacing:-.025em}
+header .logo{background:linear-gradient(145deg,#0b8f91,#176065);border-radius:15px;box-shadow:0 4px 13px #0b80772b}
+aside,body:has(.commercial-showcase) aside{background:linear-gradient(180deg,#ffffffed,#f4fbf8ed);border-right:1px solid #dcebe7;box-shadow:inset -1px 0 #ffffff80}
+aside .nav,body:has(.commercial-showcase) aside .nav{color:#496c67;border-radius:13px;transition:background .18s,color .18s,box-shadow .18s}
+aside .nav:hover,body:has(.commercial-showcase) aside .nav:hover{background:#eaf8f4;color:#176b67}
+aside .nav.active,body:has(.commercial-showcase) aside .nav.active{background:linear-gradient(110deg,#174d55,#0d8985);color:#fff;box-shadow:0 7px 16px #0b807b36;transform:none}
+main{position:relative}
+main:before{content:"";position:absolute;right:17px;top:18px;width:min(310px,34vw);height:195px;pointer-events:none;opacity:.13;z-index:0;background-image:radial-gradient(circle at center,#187f79 2px,transparent 3px),repeating-linear-gradient(45deg,transparent 0 26px,#2d9b91 27px,transparent 28px 54px),repeating-linear-gradient(-45deg,transparent 0 26px,#2d9b91 27px,transparent 28px 54px);background-size:70px 70px,70px 70px,70px 70px;mask-image:linear-gradient(to left,#000,transparent)}
+main>*{position:relative}
+h1,h2,h3{color:#214b49;letter-spacing:-.02em}
+h1{font-weight:760}
+.top p,p.muted,.muted{color:var(--lc-muted)}
+.panel,.card,.login,.commercial-showcase .panel{background:linear-gradient(145deg,#ffffffed,#f9fdfbed);border:1px solid #ffffff;box-shadow:0 10px 30px #174e5114,0 2px 8px #174e5109;border-radius:20px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.panel{padding:20px}
+.btn,.commercial-showcase .commercial-member-actions .btn:not(.secondary){background:linear-gradient(120deg,#0c8c8a,#0ab0a3);color:#fff;border-radius:12px;box-shadow:0 4px 12px #0b988d27;transition:filter .16s,transform .16s,box-shadow .16s}
+.btn:hover:not(:disabled){filter:brightness(1.035);box-shadow:0 6px 15px #0b988d34}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn.secondary,.commercial-showcase .commercial-member-actions .btn.secondary{background:linear-gradient(140deg,#f4fbf8,#e6f6f1);color:#17796e;border:1px solid #d9eee6;box-shadow:0 2px 8px #124d4710}
+.btn.danger{background:#fff0ef;color:#ae514c;border:1px solid #f7dfdc;box-shadow:none}
+input,textarea,select{border-color:#d6e9e3;background:#ffffffed;color:#274d48;border-radius:12px}
+input:focus,textarea:focus{outline:2px solid #0bb3a52b;outline-offset:0;border-color:#0bb3a5}
+table{color:#2c504a}
+th{color:#5e8077;border-bottom-color:#d6e9e3;letter-spacing:.045em}
+td{border-bottom-color:#e7f0ec}
+tbody tr:hover{background:#eaf8f450}
+.chip,.status{background:#e3f7f0;color:#0d816d}
+.notice{background:#fff9e9;color:#8d6b27}
+dialog{background:linear-gradient(145deg,#ffffff,#f6fcf9);border:1px solid #e0f0e9;box-shadow:0 22px 70px #103d3b38;border-radius:21px}
+dialog::backdrop{background:#123f3f7a;backdrop-filter:blur(3px)}
+.product{background:linear-gradient(145deg,#ffffff,#f9fdfa);border-color:#deede7;border-radius:15px;transition:border-color .18s,box-shadow .18s}
+.product:hover{border-color:#0ba69a;box-shadow:0 4px 14px #0b8b8321}
+.price{color:#098f86}
+.total{color:#195954}
+.mobile-nav{background:#ffffffef;backdrop-filter:blur(14px);border-top-color:#dceee8}
+.mobile-nav button.active{color:#0b928a}
+.commercial-showcase:before{opacity:.12}
+.commercial-showcase .panel tbody tr:nth-child(even){background:#e1f3eea3}
+.commercial-showcase .panel tbody tr:hover{background:#cdece5a6}
+.commercial-showcase>.row.noprint{background:#e6f5f1;border-color:#fff}
+.commercial-showcase>.row.noprint .btn:not(.secondary){background:linear-gradient(110deg,#14525a,#0b928a)}
+.commercial-showcase .panel td{color:#244a45}
+@media(max-width:650px){main:before{width:44vw;height:130px;opacity:.08}.panel,.card,.commercial-showcase .panel{border-radius:16px;padding:14px}header .brand{font-size:16px}}
+@media(prefers-reduced-motion:reduce){.btn,.nav,.product{transition:none!important}}
