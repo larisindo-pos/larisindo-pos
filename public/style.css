@@ -283,3 +283,10 @@ input:focus,textarea:focus,select:focus{border-color:#12a9b3!important}
 .mobile-nav{background:#ffffffd9!important;backdrop-filter:blur(16px);border-color:#c8e9ef!important}
 @media(max-width:700px){body:after{opacity:.1}.panel,.card,.commercial-showcase .panel{backdrop-filter:blur(12px)}}
 @media print{body:before,body:after,main:before,main:after{display:none!important}.panel,table td{background:white!important;box-shadow:none!important}}
+
+/* Illustration sits behind the application; translucent panels keep text readable. */
+body:before{background-image:linear-gradient(90deg,#ffffff08,#ffffff22),url('/islamic-watercolor.svg')!important;background-size:cover!important;background-position:center bottom!important;opacity:1}
+body:after{display:none!important}
+main:after{display:none!important}
+main:before{opacity:.04!important}
+@media(max-width:760px){body:before{background-position:32% bottom!important}.panel,.card,dialog{background:#ffffffe3!important}}
