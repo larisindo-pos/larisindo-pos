@@ -296,7 +296,7 @@ function renderCashierWorkspace(s){
  }))+'<p class="small">Kedatangan diambil dari waktu buka shift, bukan absensi biometrik. Belum menghitung terlambat karena jadwal kerja belum dimasukkan.</p></section>';
  }else if(cashierTab==='laci'){
  const shifts=cashierWeekShifts(),bounds=cashierWeekBounds();
- html+='<section class="panel"><h2>Kas Laci · Buka / Tutup / Ganti Shift</h2><div class="row">'+(s?btn('close','Tutup & Serah Terima Shift'):!currentShift()?btn('open','Buka Kas Laci'): '<p class="notice">Laci sedang digunakan shift lain. Tunggu penutupan shift sebelumnya.</p>')+'</div>'+
+ html+='<section class="panel"><h2>Kas Laci · Buka / Tutup / Ganti Shift</h2><div class="row">'+(s?btn('close','Tutup & Serah Terima Shift'):!currentShift()?btn('open','Buka Kas Laci'): '<div class="notice">Laci sedang digunakan oleh <strong>'+esc(data.users.find(u=>u.id===currentShift().cashier_id)?.name||'kasir lain')+'</strong>. Petugas sebelumnya perlu Tutup Shift → Hitung Uang sebelum kasir berikutnya membuka shift.</div>')+'</div>'+
  (s?'<p>Modal awal '+money(s.opening_cash)+' · Kas sistem '+money(expected(s))+'</p>':'<p>Modal kas awal standar Rp500.000; hitung dan konfirmasi kas fisik saat membuka.</p>')+'</section>';
  html+='<section class="panel"><h2>Laporan Kas Laci per Pekan</h2><div class="row">'+btn('cashier-week-prev','← Pekan sebelumnya',true)+'<strong>'+bounds.start+' s.d. '+bounds.end+'</strong>'+btn('cashier-week-next','Pekan berikutnya →',true)+'</div>'+
  table(['Tanggal','Kasir','Buka','Tutup','Kas Sistem','Kas Fisik','Selisih','Status'],shifts.map(x=>[
@@ -628,7 +628,20 @@ if(a==='cashier-week-prev'){cashierWeekOffset--;return render()}
 if(a==='cashier-week-next'){cashierWeekOffset++;return render()}
 if(a==='credit-payment')return openCreditPayment();
 if(a==='add')return add(id);if(a==='minus'){let c=cart.find(c=>c.id===id);if(c&&--c.qty<=0)cart=cart.filter(c=>c.id!==id);return cartUI()}if(a==='pay'||a==='retry'){if(activeOpname())return notify('Sedang proses stock opname. Penjualan dikunci.');return pay(a==='retry')}if(a==='receipt')return showReceipt(id);if(a==='payment-evidence')return openPaymentEvidence(id);if(a==='print')return window.print();if(a==='print-receipt'){let w=window.open('','_blank');if(!w)return notify('Izinkan pop-up untuk mencetak');w.document.write('<!doctype html><html><head><title>Nota Larisindo</title><style>body{font:12px monospace;max-width:320px;margin:auto}table{width:100%}td,th{text-align:left;padding:6px 0}button{display:none}@media print{@page{size:80mm auto;margin:4mm}}</style></head><body>'+$('#receipt').innerHTML+'</body></html>');w.document.close();w.onload=()=>w.print();return}
-if(a==='open'&&(page==='operasional'||(page==='kasir'&&cashierTab==='laci'))){const requestId=crypto.randomUUID();return editModal('Buka shift',field('opening','Uang fisik awal (Rp)',500000,'number','min="0" max="1000000000" required')+'<p>Hitung uang yang benar-benar diterima. Hanya satu shift dapat aktif pada laci bersama.</p>',f=>rpc('pos_open_shift',{p_id:requestId,p_opening:Number(f.opening)}))}
+if(a==='open'&&(page==='operasional'||(page==='kasir'&&cashierTab==='laci'))){
+ const active=currentShift();
+ if(active){const owner=data.users.find(u=>u.id===active.cashier_id);return editModal('Shift masih aktif','<div class="notice">Laci kas sedang digunakan oleh <strong>'+esc(owner?.name||'kasir lain')+'</strong> sejak '+date(active.opened_at)+'.</div><p>Untuk berganti kasir: petugas sebelumnya harus <strong>Tutup Shift → Hitung Uang</strong>, kemudian kasir berikutnya dapat membuka shift baru.</p>',()=>{});}
+ const requestId=crypto.randomUUID();
+ return editModal('Buka shift',field('opening','Uang fisik awal (Rp)',500000,'number','min="0" max="1000000000" required')+'<p>Hitung uang fisik yang diterima dari serah terima. Hanya satu shift aktif pada laci bersama.</p>',async f=>{
+  await sync();
+  const now=currentShift();
+  if(now){const owner=data.users.find(u=>u.id===now.cashier_id);throw Error('Laci masih digunakan oleh '+(owner?.name||'kasir lain')+'. Minta petugas menutup shift dan menghitung kas fisik terlebih dahulu.')}
+  try{await rpc('pos_open_shift',{p_id:requestId,p_opening:Number(f.opening)})}catch(e){
+   if(e.code==='23505'||/one_open_drawer|duplicate key value/i.test(e.message||''))throw Error('Laci sudah memiliki shift aktif. Segarkan data, lalu lakukan Tutup Shift → Hitung Uang sebelum membuka shift berikutnya.');
+   throw e;
+  }
+ });
+}
 if(a==='close'&&(page==='operasional'||(page==='kasir'&&cashierTab==='laci'))){let s=ownShift();if(!s)return;return editModal('Tutup shift',`<div class="notice">Kas seharusnya ${money(expected(s))}. Hitung kas fisik; catat alasan jika ada selisih.</div>`+field('counted','Kas fisik (Rp)','','number','min="0" required')+field('note','Catatan / alasan selisih'),f=>rpc('pos_close_shift',{p_id:s.id,p_counted:Number(f.counted),p_note:f.note}))}
 if(a==='template-products')return downloadProductTemplate();
 if(a==='import-products')return openProductImport();
