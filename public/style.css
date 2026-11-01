@@ -360,3 +360,12 @@ table tbody tr:nth-child(odd){background:rgba(255,255,255,.28)!important}
 .password-visibility-wrap input{width:100%;min-width:0;padding-right:105px!important}
 .password-visibility-toggle{position:absolute;right:7px;top:50%;transform:translateY(-50%);border:1px solid #ccebf0;border-radius:9px;padding:7px 10px;background:#e9f9fc;color:#087083;font:inherit;font-size:12px;font-weight:650;cursor:pointer;z-index:1}
 .password-visibility-toggle:hover,.password-visibility-toggle:focus-visible{background:#c9f0f4;outline:2px solid #6dc8d0;outline-offset:1px}
+
+/* Live cashier indicator beside the cashier sub-menu */
+.cashier-heading-main{display:flex;align-items:center;flex-wrap:wrap;gap:10px 13px}
+.cashier-active-status{display:inline-flex;align-items:center;gap:7px;max-width:100%;min-height:37px;padding:8px 13px;border:1px solid #b9e9ec;border-radius:999px;background:rgba(237,253,255,.84);color:#086c7b;font-size:12px;box-shadow:0 3px 11px #0b86951a;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.cashier-active-status strong{font-weight:750;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#087386}
+.cashier-status-dot{width:8px;height:8px;flex:none;border-radius:50%;background:#09aeb5;box-shadow:0 0 0 3px #09aeb51f}
+.cashier-status-idle{background:rgba(255,255,255,.76);color:#608e98;border-color:#d8eef1}
+.cashier-status-idle .cashier-status-dot{background:#92bdc5;box-shadow:none}
+@media(max-width:540px){.cashier-heading-main{gap:8px}.cashier-active-status{font-size:11px;padding:7px 10px}.cashier-status-caption{display:none}.cashier-active-status strong{max-width:125px}}
