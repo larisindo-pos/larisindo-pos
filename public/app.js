@@ -341,12 +341,11 @@ function openServiceForm(id){
  const status=document.querySelector('#dialog [name=active]');if(status)status.value=String(s.active??true);
 }
 function commercialUI(){
- const tabs=[['members','Member & Mitra'],['vouchers','Voucher'],['prices','Harga Grosir']];
- let html=head('Member & Mitra Penjualan','Kelola pelanggan loyal, voucher, grosir, reseller tanpa stok, dan affiliate.');
+ const tabs=[['members','Member & Mitra'],['vouchers','Voucher']];
+ let html=head('Member & Mitra Penjualan','Kelola pelanggan loyal, voucher, reseller tanpa stok, dan affiliate.');
  html+='<div class="row noprint" style="gap:8px;flex-wrap:wrap;margin-bottom:16px">'+tabs.map(([id,label])=>btn('commercial-tab',label,commercialTab!==id,id)).join('')+'</div>';
  if(commercialTab==='members')html+='<section class="panel"><div class="commercial-member-toolbar"><h2>Daftar Member & Mitra</h2><div class="commercial-member-actions">'+btn('commercial-member-new','+ Tambah Member')+(data.me.role==='Super Admin'?btn('commercial-points-settings','⚙ Pengaturan Poin',true):'')+'</div></div>'+table(['Kode','Nama','Telepon','Jenis','Poin','Aksi'],commercialData.members.map(m=>[esc(m.member_code),esc(m.name),esc(m.phone||'—'),esc(m.tier),String(m.points_balance),btn('commercial-member-edit','Edit',true,m.id)]))+'</section>';
  if(commercialTab==='vouchers')html+='<section class="panel"><h2>Voucher Promosi</h2>'+btn('commercial-voucher-new','+ Buat Voucher')+table(['Kode','Nama','Potongan','Minimal Belanja','Terpakai','Aksi'],commercialData.vouchers.map(v=>[esc(v.code),esc(v.title),v.discount_type==='percent'?v.discount_value+'%':money(v.discount_value),money(v.minimum_spend),v.usage_count+(v.usage_limit?' / '+v.usage_limit:''),btn('commercial-voucher-edit','Edit',true,v.id)]))+'<p class="small">Voucher tercatat. Potongan checkout belum diaktifkan.</p></section>';
- if(commercialTab==='prices')html+='<section class="panel"><h2>Harga Bertingkat Grosir & Reseller</h2>'+table(['Produk','Jenis','Minimal Qty','Harga per Unit'],commercialData.prices.map(p=>[esc(data.products.find(x=>x.id===p.product_id)?.name||p.product_id),esc(p.tier),p.min_qty,money(p.unit_price)]))+'<p class="small">Harga bertingkat disiapkan; integrasi checkout belum diaktifkan.</p></section>';
 
  return '<div class="commercial-showcase">'+html+'</div>';
 }
