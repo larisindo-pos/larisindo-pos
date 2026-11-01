@@ -16,18 +16,19 @@ const rpc=(name,args={})=>request('/rest/v1/rpc/'+name,args);
 async function sync(){if(!session){$('#auth').hidden=false;$('#shell').hidden=true;return}try{data=await rpc('pos_snapshot');activeDrawerStatus=await rpc('pos_active_drawer');sharedShiftReport=await rpc('pos_shift_report');commercialData=['Super Admin','Supervisor','Kasir'].includes(data.me.role)?await rpc('pos_commercial_list'):{members:[],vouchers:[],prices:[],settings:{}};purchaseDocs=can('pembelian')||finance()?await rpc('pos_purchase_list'):[];financeEntries=finance()?await rpc('pos_finance_list'):[];opnameOrders=await rpc('pos_opname_list');services=await rpc('pos_service_list');myPermissions=await rpc('pos_my_permissions');permissionRecords=data.me.role==='Super Admin'?await rpc('pos_permission_list'):[];stockTransfers=can('produk')?await rpc('pos_stock_transfer_list'):[];paymentEvidence=await rpc('pos_payment_evidence_list');cashierCredits=can('kasir')?await rpc('pos_cashier_credit_list'):[];$('#auth').hidden=true;$('#shell').hidden=false;render()}catch(e){$('#auth').hidden=false;$('#shell').hidden=true;$('#authError').hidden=false;$('#authError').textContent=e.message+' — Jika baru mendaftar, minta Super Admin mengaktifkan akun.'}}
 async function auth(){const email=$('#email').value.trim(),password=$('#password').value;$('#authError').hidden=true;if(!$('#authForm').reportValidity())return;const buttons=[...$('#authForm').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);try{const s=await request('/auth/v1/token?grant_type=password',{email,password},false);setSession(s,$('#rememberLogin').checked);await sync()}catch(e){$('#authError').textContent=e.message;$('#authError').hidden=false}finally{buttons.forEach(b=>b.disabled=false)}}
 $('#rememberLogin').checked=localStorage.getItem('larisindo.remember')==='yes';
-let explicitLoginRequested=false;
-const loginButton=$('#authForm button[type="submit"]');
-loginButton.addEventListener('click',()=>{explicitLoginRequested=true});
+// Never allow Enter, password-manager autofill, or implicit form submission to log in.
+const loginButton=$('#loginButton');
+$('#authForm').addEventListener('submit',e=>e.preventDefault());
 $('#authForm').addEventListener('keydown',e=>{
- if(e.key==='Enter'&&e.target!==loginButton){e.preventDefault();explicitLoginRequested=false}
+ if(e.key==='Enter')e.preventDefault();
 });
-$('#authForm').onsubmit=e=>{
- e.preventDefault();
- if(!explicitLoginRequested)return;
- explicitLoginRequested=false;
+loginButton.addEventListener('click',e=>{
+ if(!e.isTrusted)return;
  auth();
-};
+});
+$('#rememberLogin').addEventListener('change',e=>{
+ if(!e.target.checked){localStorage.removeItem('larisindo.session');sessionStorage.removeItem('larisindo.session')}
+});
 $('#showRegister').onclick=()=>{$('#authForm').hidden=true;$('#registerForm').hidden=false;$('#showRegister').hidden=true;$('#showLogin').hidden=false;$('#authError').hidden=true;$('#authSuccess').hidden=true};
 $('#showLogin').onclick=()=>{$('#authForm').hidden=false;$('#registerForm').hidden=true;$('#showRegister').hidden=false;$('#showLogin').hidden=true;$('#authError').hidden=true};
 $('#registerForm').onsubmit=async e=>{e.preventDefault();const f=$('#registerForm');if(!f.reportValidity())return;const name=$('#registerName').value.trim(),email=$('#registerEmail').value.trim(),password=$('#registerPassword').value;if(name.length<2)return notify('Isi nama lengkap');if(password!==$('#registerConfirm').value)return notify('Konfirmasi kata sandi tidak sama');const button=f.querySelector('button[type=submit]');button.disabled=true;$('#authError').hidden=true;$('#authSuccess').hidden=true;try{const res=await fetch(URL+'/auth/v1/signup',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password,data:{name},email_redirect_to:location.origin+'/'})});const result=await res.json().catch(()=>({}));if(!res.ok)throw Error(result.msg||result.error_description||result.message||'Pendaftaran gagal');f.reset();$('#authSuccess').textContent='Pendaftaran diterima. Periksa email untuk verifikasi, lalu tunggu Super Admin mengaktifkan akun sebelum masuk.';$('#authSuccess').hidden=false;$('#registerForm').hidden=true;$('#authForm').hidden=false;$('#showLogin').hidden=true;$('#showRegister').hidden=false}catch(err){$('#authError').textContent=err.message;$('#authError').hidden=false}finally{button.disabled=false}};
