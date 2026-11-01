@@ -296,3 +296,13 @@ main:before{opacity:.04!important}
 body:before{background-image:linear-gradient(90deg,#ffffff18,#ffffff06),url('/islamic-background-original.png')!important;background-color:#f9feff!important;background-size:cover!important;background-position:center center!important}
 body:has(.commercial-showcase):before{background-position:center center!important}
 @media(max-width:800px){body:before{background-position:27% center!important}}
+
+/* Fix: render actual uploaded background at root stacking level.
+   A negative-z body pseudo-element can disappear behind the opaque body. */
+html{background:#f9feff url('/islamic-background-original.png') center center / cover fixed no-repeat!important;min-height:100%}
+body,body:has(.commercial-showcase){background:transparent!important;min-height:100vh}
+body:before,body:after{content:none!important;display:none!important}
+.layout{background:transparent!important}
+main{isolation:auto!important}
+main:before,main:after{content:none!important;display:none!important}
+@media(max-width:800px){html{background-position:27% center!important;background-attachment:scroll!important}body{background:transparent!important}}
